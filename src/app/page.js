@@ -70,7 +70,7 @@ export default function Home() {
                       </button>
                       {isDropdownOpen && (
                         <div className="absolute right-0 mt-2 w-64 rounded-lg shadow-lg bg-[#173f88] py-4 px-4">
-                          <p className="text-white text-sm mb-3">You don't have any exchanges yet</p>
+                          <p className="text-white text-sm mb-3">You don&apos;t have any exchanges yet</p>
                           <button className="w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm">
                             Create a new exchange
                           </button>
@@ -258,7 +258,7 @@ export default function Home() {
                       24/7 support
                     </p>
                     <p className="text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
-                      You won't be left alone
+                      You won&apos;t be left alone
                     </p>
                     <p className="text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
                       Our support team is easy to reach and ready to answer your questions.
@@ -279,7 +279,7 @@ export default function Home() {
                       Non-custodial
                     </p>
                     <p className="text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
-                      Crypto is sent directly to your wallet, we don't store it on our service.
+                      Crypto is sent directly to your wallet, we don&apos;t store it on our service.
                     </p>
                   </div>
                   <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
@@ -319,7 +319,7 @@ export default function Home() {
                   </div>
                   <div className="max-w-[250px]">
                     <h3 className="text-[17px] font-semibold" style={{ color: '#252c44' }}>
-                      Enter the recipient's address
+                      Enter the recipient&apos;s address
                     </h3>
                     <p className="mt-2 text-[15px]" style={{ color: '#3f5878' }}>
                       The currency you want to receive will be sent to this address after the exchange.
@@ -335,10 +335,10 @@ export default function Home() {
                   </div>
                   <div className="max-w-[250px]">
                     <h3 className="text-[17px] font-semibold" style={{ color: '#252c44' }}>
-                      That's all!
+                      That&apos;s all!
                     </h3>
                     <p className="mt-2 text-[15px]" style={{ color: '#3f5878' }}>
-                      The exchange status "Finished" means that the swap process is over.
+                      The exchange status &quot;Finished&quot; means that the swap process is over.
                     </p>
                   </div>
                 </div>
