@@ -101,7 +101,7 @@ export default function Home() {
                 {/* Desktop Navigation */}
                 <div className="hidden xl:flex items-center">
                   <nav className="flex gap-8 mr-8">
-                    <Link href="/" className="text-white hover:text-gray-300">Home</Link>
+                    <Link href="/login" className="text-white hover:text-gray-300">Home</Link>
                     <Link href="/#how-it-works" className="text-[12px] sm:text-[14px] md:text-[16px] text-white/80 hover:text-white transition-colors">
                       How it works
                     </Link>
@@ -144,10 +144,10 @@ export default function Home() {
                     </div>
                   </nav>
                   <div className="flex gap-4">
-                    <Link href="#" className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors">
+                    <Link href="/login" className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors">
                       Login
                     </Link>
-                    <Link href="#" className="text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors">
+                    <Link href="/signup" className="text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors">
                       Get an Account
                     </Link>
                   </div>
@@ -161,7 +161,7 @@ export default function Home() {
                 } shadow-xl border-l border-white/10`}
               >
                 <div className="px-6 py-6 space-y-4">
-                  <Link href="/" className="block text-white hover:text-gray-300 py-2 border-b border-white/10">
+                  <Link href="/login" className="block text-white hover:text-gray-300 py-2 border-b border-white/10">
                     Home
                   </Link>
                   <button 
@@ -204,10 +204,10 @@ export default function Home() {
                     )}
                   </div>
                   <div className="pt-4 space-y-3">
-                    <Link href="#" className="block text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center">
+                    <Link href="/login" className="block text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center">
                       Login
                     </Link>
-                    <Link href="#" className="block text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors text-center">
+                    <Link href="/signup" className="block text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors text-center">
                       Get an Account
                     </Link>
                   </div>
