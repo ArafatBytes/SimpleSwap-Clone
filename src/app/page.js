@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { cryptocurrencies } from '../data/cryptocurrencies';
+import { cryptoCategories, getCoinsByCategory } from '../data/cryptoCategories';
 
 export default function Home() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -14,6 +15,10 @@ export default function Home() {
   const [selectedGetCrypto, setSelectedGetCrypto] = useState(cryptocurrencies[1]);
   const [showSendDropdown, setShowSendDropdown] = useState(false);
   const [showGetDropdown, setShowGetDropdown] = useState(false);
+  const [sendSearchQuery, setSendSearchQuery] = useState('');
+  const [getSearchQuery, setGetSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -36,7 +41,14 @@ export default function Home() {
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      const headerOffset = 80; // Account for fixed header
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth"
+      });
     }
     setIsMobileMenuOpen(false);
   };
@@ -54,12 +66,27 @@ export default function Home() {
     }
   };
 
+  // Filter cryptocurrencies based on category and search query
+  const getFilteredCryptos = () => {
+    let filteredList = selectedCategory === 'all' 
+      ? cryptocurrencies 
+      : cryptocurrencies.filter(crypto => getCoinsByCategory(selectedCategory).includes(crypto.symbol));
+
+    if (searchQuery) {
+      return filteredList.filter(crypto => 
+        crypto.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        crypto.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    return filteredList;
+  };
+
   return (
     <div className="min-h-screen relative" style={{ backgroundColor: "#062763" }}>
       <div className="absolute inset-0 bg-cover bg-no-repeat bg-center" style={{ 
-        backgroundImage: `url('/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwMCIgaGVpZ2h0PSIxMjI1IiB2aWV3Qm94PSIwIDAgMTUwMCAxMjI1IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8bWFzayBpZD0ibWFzazAiIG1hc2stdHlwZT0iYWxwaGEiIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiIHg9Ii0yMTAiIHk9.svg')`,
-        opacity: 0.1
-      }} />
+        backgroundImage: `url('/images/bg.png')`,
+        opacity: 0.4
+      }}></div>
       <div className="relative z-10">
         <div className="fixed top-0 left-0 right-0 z-50">
           <div className="border-b border-white/10 bg-[#062763]">
@@ -101,10 +128,13 @@ export default function Home() {
                 {/* Desktop Navigation */}
                 <div className="hidden xl:flex items-center">
                   <nav className="flex gap-8 mr-8">
-                    <Link href="/login" className="text-white hover:text-gray-300">Home</Link>
-                    <Link href="/#how-it-works" className="text-[12px] sm:text-[14px] md:text-[16px] text-white/80 hover:text-white transition-colors">
+                    <Link href="/" className="text-white hover:text-gray-300">Home</Link>
+                    <button 
+                      onClick={() => scrollToSection('how-it-works')} 
+                      className="text-[12px] sm:text-[14px] md:text-[16px] text-white/80 hover:text-white transition-colors"
+                    >
                       How it works
-                    </Link>
+                    </button>
                     <Link href="/blog" className="text-[12px] sm:text-[14px] md:text-[16px] text-white/80 hover:text-white transition-colors">
                       Blog
                     </Link>
@@ -144,7 +174,7 @@ export default function Home() {
                     </div>
                   </nav>
                   <div className="flex gap-4">
-                    <Link href="/login" className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors">
+                    <Link href="/" className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors">
                       Login
                     </Link>
                     <Link href="/signup" className="text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors">
@@ -161,7 +191,7 @@ export default function Home() {
                 } shadow-xl border-l border-white/10`}
               >
                 <div className="px-6 py-6 space-y-4">
-                  <Link href="/login" className="block text-white hover:text-gray-300 py-2 border-b border-white/10">
+                  <Link href="/" className="block text-white hover:text-gray-300 py-2 border-b border-white/10">
                     Home
                   </Link>
                   <button 
@@ -204,7 +234,7 @@ export default function Home() {
                     )}
                   </div>
                   <div className="pt-4 space-y-3">
-                    <Link href="/login" className="block text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center">
+                    <Link href="/" className="block text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center">
                       Login
                     </Link>
                     <Link href="/signup" className="block text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors text-center">
@@ -226,6 +256,7 @@ export default function Home() {
               fontFamily: 'Poppins, Inter, sans-serif',
               fontSize: 'min(3.5vw, 19px)'
             }}>Free from sign-up, limits, complications</p>
+
             <div className="mt-8 bg-white rounded-[30px] p-6 sm:p-8 md:p-12 w-[90%] sm:w-full max-w-2xl mx-auto">
               <div className="flex justify-center">
                 <h2 style={{ 
@@ -252,34 +283,85 @@ export default function Home() {
                         alt={selectedSendCrypto.symbol} 
                         className="w-5 h-5 sm:w-6 sm:h-6" 
                       />
-                      <span className="text-[12px] sm:text-[14px] font-medium" style={{ 
-                        fontFamily: 'Poppins, Inter, sans-serif',
-                        color: '#3f5878'
-                      }}>{selectedSendCrypto.symbol}</span>
+                      <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">{selectedSendCrypto.symbol}</span>
                     </div>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-[#3f5878]">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                     </svg>
                     
                     {showSendDropdown && (
-                      <div className="absolute top-[70px] left-0 right-0 bg-white rounded-xl shadow-lg max-h-[300px] overflow-y-auto z-[100]">
-                        {cryptocurrencies.map((crypto) => (
-                          <div
-                            key={crypto.symbol}
-                            className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedSendCrypto(crypto);
-                              setShowSendDropdown(false);
-                            }}
-                          >
-                            <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
-                            <div>
-                              <p className="text-[12px] font-medium text-[#3f5878]">{crypto.symbol}</p>
-                              <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
-                            </div>
+                      <div className="absolute top-[75px] left-0 w-[calc(90vw-2rem)] max-w-[calc(32rem-2rem)] sm:w-[calc(100vw-5rem)] md:w-[calc(100vw-7rem)] bg-white rounded-xl shadow-lg overflow-y-auto z-20 max-h-[50vh]">
+                        <div className="bg-white p-2 border-b">
+                          <input
+                            type="text"
+                            placeholder="Search cryptocurrency..."
+                            value={sendSearchQuery}
+                            onChange={(e) => setSendSearchQuery(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm text-[#1a2b4b]"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        <div className="bg-white border-b">
+                          <div className="flex overflow-x-auto p-2 gap-2 scrollbar-hide">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCategory('all');
+                              }}
+                              className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
+                                selectedCategory === 'all'
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              All
+                            </button>
+                            {['popular', 'new', 'gainers24h', 'losers24h', 'stablecoins'].map((category) => (
+                              <button
+                                key={category}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCategory(category);
+                                }}
+                                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
+                                  selectedCategory === category
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                {category === 'gainers24h' ? '24h Gainers' :
+                                 category === 'losers24h' ? '24h Losers' :
+                                 category === 'stablecoins' ? 'Stablecoins' :
+                                 category.charAt(0).toUpperCase() + category.slice(1)}
+                              </button>
+                            ))}
                           </div>
-                        ))}
+                        </div>
+                        <div>
+                          {getFilteredCryptos()
+                            .filter(crypto => 
+                              crypto.name.toLowerCase().includes(sendSearchQuery.toLowerCase()) ||
+                              crypto.symbol.toLowerCase().includes(sendSearchQuery.toLowerCase())
+                            )
+                            .map((crypto) => (
+                              <div
+                                key={crypto.symbol}
+                                className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedSendCrypto(crypto);
+                                  setShowSendDropdown(false);
+                                  setSendSearchQuery('');
+                                }}
+                              >
+                                <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
+                                <div>
+                                  <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol}</p>
+                                  <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -289,7 +371,7 @@ export default function Home() {
                       value={sendAmount}
                       onChange={(e) => handleNumberInput(e.target.value, setSendAmount)}
                       placeholder="You Send" 
-                      className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium placeholder:text-[#3f5878]/50" 
+                      className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium" 
                       style={{ 
                         fontFamily: 'Poppins, Inter, sans-serif',
                         color: '#3f5878'
@@ -313,34 +395,85 @@ export default function Home() {
                         alt={selectedGetCrypto.symbol} 
                         className="w-5 h-5 sm:w-6 sm:h-6" 
                       />
-                      <span className="text-[12px] sm:text-[14px] font-medium" style={{ 
-                        fontFamily: 'Poppins, Inter, sans-serif',
-                        color: '#3f5878'
-                      }}>{selectedGetCrypto.symbol}</span>
+                      <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">{selectedGetCrypto.symbol}</span>
                     </div>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-[#3f5878]">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                     </svg>
                     
                     {showGetDropdown && (
-                      <div className="absolute top-[70px] left-0 right-0 bg-white rounded-xl shadow-lg max-h-[300px] overflow-y-auto z-[100]">
-                        {cryptocurrencies.map((crypto) => (
-                          <div
-                            key={crypto.symbol}
-                            className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedGetCrypto(crypto);
-                              setShowGetDropdown(false);
-                            }}
-                          >
-                            <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
-                            <div>
-                              <p className="text-[12px] font-medium text-[#3f5878]">{crypto.symbol}</p>
-                              <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
-                            </div>
+                      <div className="absolute top-[75px] left-0 w-[calc(90vw-2rem)] max-w-[calc(32rem-2rem)] sm:w-[calc(100vw-5rem)] md:w-[calc(100vw-7rem)] bg-white rounded-xl shadow-lg overflow-y-auto z-20 max-h-[50vh]">
+                        <div className="bg-white p-2 border-b">
+                          <input
+                            type="text"
+                            placeholder="Search cryptocurrency..."
+                            value={getSearchQuery}
+                            onChange={(e) => setGetSearchQuery(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm text-[#1a2b4b]"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        <div className="bg-white border-b">
+                          <div className="flex overflow-x-auto p-2 gap-2 scrollbar-hide">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCategory('all');
+                              }}
+                              className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
+                                selectedCategory === 'all'
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              All
+                            </button>
+                            {['popular', 'new', 'gainers24h', 'losers24h', 'stablecoins'].map((category) => (
+                              <button
+                                key={category}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCategory(category);
+                                }}
+                                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
+                                  selectedCategory === category
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                {category === 'gainers24h' ? '24h Gainers' :
+                                 category === 'losers24h' ? '24h Losers' :
+                                 category === 'stablecoins' ? 'Stablecoins' :
+                                 category.charAt(0).toUpperCase() + category.slice(1)}
+                              </button>
+                            ))}
                           </div>
-                        ))}
+                        </div>
+                        <div>
+                          {getFilteredCryptos()
+                            .filter(crypto => 
+                              crypto.name.toLowerCase().includes(getSearchQuery.toLowerCase()) ||
+                              crypto.symbol.toLowerCase().includes(getSearchQuery.toLowerCase())
+                            )
+                            .map((crypto) => (
+                              <div
+                                key={crypto.symbol}
+                                className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedGetCrypto(crypto);
+                                  setShowGetDropdown(false);
+                                  setGetSearchQuery('');
+                                }}
+                              >
+                                <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
+                                <div>
+                                  <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol}</p>
+                                  <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -350,7 +483,7 @@ export default function Home() {
                       value={getAmount}
                       onChange={(e) => handleNumberInput(e.target.value, setGetAmount)}
                       placeholder="You Get" 
-                      className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium placeholder:text-[#3f5878]/50" 
+                      className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium" 
                       style={{ 
                         fontFamily: 'Poppins, Inter, sans-serif',
                         color: '#3f5878'
@@ -370,135 +503,135 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <div className="grid sm:grid-cols-2 grid-cols-1 gap-8 mt-48 xl:w-[1200px] sm:w-[600px] w-[90%] mx-auto">
-              <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
-                <div className="flex justify-between items-center">
-                  <div className="max-w-[60%]">
-                    <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
-                      Privacy
-                    </p>
-                    <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
-                      Sign-up is not required
-                    </p>
-                    <p className="text-[14px] xl:text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
-                      SimpleSwap provides cryptocurrency exchange without registration.
-                    </p>
-                  </div>
-                  <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
-                    <img src="/picture1-017aef986c0e885636f8f840d9b9950b.png" alt="Privacy" className="w-24 xl:w-32 h-24 xl:h-32" />
-                  </div>
-                </div>
-              </div>
-              <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
-                <div className="flex justify-between items-center">
-                  <div className="max-w-[60%]">
-                    <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
-                      Wide choice
-                    </p>
-                    <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
-                      1500 cryptocurrencies
-                    </p>
-                    <p className="text-[14px] xl:text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
-                      Hundreds of crypto and fiat currencies are available for exchange.
-                    </p>
-                  </div>
-                  <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
-                    <img src="/picture2-5152c421af8e678203b7655f62780d46.png" alt="Wide choice" className="w-24 xl:w-32 h-24 xl:h-32" />
-                  </div>
-                </div>
-              </div>
-              <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
-                <div className="flex justify-between items-center">
-                  <div className="max-w-[60%]">
-                    <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
-                      24/7 support
-                    </p>
-                    <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
-                      You won&apos;t be left alone
-                    </p>
-                    <p className="text-[14px] xl:text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
-                      Our support team is easy to reach and ready to answer your questions.
-                    </p>
-                  </div>
-                  <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
-                    <img src="/picture3-3c002d66e84372393183095df5cb4fb7.png" alt="24/7 Support" className="w-24 xl:w-32 h-24 xl:h-32" />
-                  </div>
-                </div>
-              </div>
-              <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
-                <div className="flex justify-between items-center">
-                  <div className="max-w-[60%]">
-                    <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
-                      Safety
-                    </p>
-                    <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
-                      Non-custodial
-                    </p>
-                    <p className="text-[14px] xl:text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
-                      Crypto is sent directly to your wallet, we don&apos;t store it on our service.
-                    </p>
-                  </div>
-                  <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
-                    <img src="/picture4-9dd3430e0f4506b07e22b35c676f5322.png" alt="Safety" className="w-24 xl:w-32 h-24 xl:h-32" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="relative mt-48">
-              <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-[30px] w-[83.3vw] max-w-[1000px] h-[250px] shadow-lg flex flex-col items-center justify-center py-8 sm:py-12 md:py-16">
-                <h2 className="text-[24px] sm:text-[32px] md:text-[40px] font-semibold" style={{ color: '#141a2e' }}>
-                  Start Swapping Crypto
-                </h2>
-                <p className="mt-2 sm:mt-4 text-[12px] sm:text-[14px] md:text-[16px] text-center max-w-[80%] sm:max-w-[70%] md:max-w-[60%] mx-auto" style={{ color: '#3f5878' }}>
-                  Just make the first exchange to see how easy and profitable it is.
-                </p>
-                <button
-                  className="mt-4 sm:mt-6 bg-gradient-to-r from-[#3F7AF7] to-[#7F31FF] text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg font-medium transition-all duration-200 hover:opacity-90 hover:scale-105 text-[12px] sm:text-[14px] md:text-[16px]"
-                >
-                  Create an exchange
-                </button>
-              </div>
-            </div>
-            <div className="w-full bg-white" id="how-it-works">
-              <div className="max-w-[1200px] mx-auto pt-60 pb-40">
-                <h2 className="text-center text-[24px] sm:text-[32px] md:text-[40px] font-semibold" style={{ color: '#141a2e' }}>How It Works</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mt-12 px-6 sm:px-8">
-                  <div className="bg-[#f7f9fc] rounded-[20px] p-6 sm:p-8">
-                    <div className="w-12 h-12 rounded-full bg-[#0f75fc] text-white flex items-center justify-center text-[18px] sm:text-[20px] font-semibold">1</div>
-                    <h3 className="mt-4 text-[16px] sm:text-[18px] md:text-[20px] font-semibold" style={{ color: '#141a2e' }}>Choose crypto</h3>
-                    <p className="mt-2 text-[12px] sm:text-[14px] text-[#3f5878]">Select the crypto you want to exchange and enter the amount.</p>
-                  </div>
-                  <div className="bg-[#f7f9fc] rounded-[20px] p-6 sm:p-8">
-                    <div className="w-12 h-12 rounded-full bg-[#0f75fc] text-white flex items-center justify-center text-[18px] sm:text-[20px] font-semibold">2</div>
-                    <h3 className="mt-4 text-[16px] sm:text-[18px] md:text-[20px] font-semibold" style={{ color: '#141a2e' }}>Enter address</h3>
-                    <p className="mt-2 text-[12px] sm:text-[14px] text-[#3f5878]">Provide the wallet address for receiving your exchanged crypto.</p>
-                  </div>
-                  <div className="bg-[#f7f9fc] rounded-[20px] p-6 sm:p-8">
-                    <div className="w-12 h-12 rounded-full bg-[#0f75fc] text-white flex items-center justify-center text-[18px] sm:text-[20px] font-semibold">3</div>
-                    <h3 className="mt-4 text-[16px] sm:text-[18px] md:text-[20px] font-semibold" style={{ color: '#141a2e' }}>Make deposit</h3>
-                    <p className="mt-2 text-[12px] sm:text-[14px] text-[#3f5878]">Send your crypto to the generated address to start the exchange.</p>
-                  </div>
-                  <div className="bg-[#f7f9fc] rounded-[20px] p-6 sm:p-8">
-                    <div className="w-12 h-12 rounded-full bg-[#0f75fc] text-white flex items-center justify-center text-[18px] sm:text-[20px] font-semibold">4</div>
-                    <h3 className="mt-4 text-[16px] sm:text-[18px] md:text-[20px] font-semibold" style={{ color: '#141a2e' }}>Get crypto</h3>
-                    <p className="mt-2 text-[12px] sm:text-[14px] text-[#3f5878]">Receive your exchanged cryptocurrency in your wallet.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="w-full" style={{ backgroundColor: '#010e27' }}>
-              <div className="max-w-[1200px] mx-auto py-40">
-              </div>
-              <div className="w-full" style={{ backgroundColor: '#010c22' }}>
-                <div className="max-w-[1200px] mx-auto py-8">
-                  <p className="text-center text-[14px] font-semibold" style={{ color: '#859ab5' }}>
-                  &copy; 2018-2024 SimpleSwap
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </main>
+      </div>
+      <div className="grid sm:grid-cols-2 grid-cols-1 gap-8 mt-48 xl:w-[1200px] sm:w-[600px] w-[90%] mx-auto">
+        <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
+          <div className="flex justify-between items-center">
+            <div className="max-w-[60%]">
+              <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
+                Privacy
+              </p>
+              <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
+                Sign-up is not required
+              </p>
+              <p className="text-[14px] xl:text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
+                SimpleSwap provides cryptocurrency exchange without registration.
+              </p>
+            </div>
+            <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
+              <img src="/picture1-017aef986c0e885636f8f840d9b9950b.png" alt="Privacy" className="w-24 xl:w-32 h-24 xl:h-32" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
+          <div className="flex justify-between items-center">
+            <div className="max-w-[60%]">
+              <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
+                Wide choice
+              </p>
+              <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
+                1500 cryptocurrencies
+              </p>
+              <p className="text-[14px] xl:text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
+                Hundreds of crypto and fiat currencies are available for exchange.
+              </p>
+            </div>
+            <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
+              <img src="/picture2-5152c421af8e678203b7655f62780d46.png" alt="Wide choice" className="w-24 xl:w-32 h-24 xl:h-32" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
+          <div className="flex justify-between items-center">
+            <div className="max-w-[60%]">
+              <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
+                24/7 support
+              </p>
+              <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
+                You won&apos;t be left alone
+              </p>
+              <p className="text-[14px] xl:text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
+                Our support team is easy to reach and ready to answer your questions.
+              </p>
+            </div>
+            <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
+              <img src="/picture3-3c002d66e84372393183095df5cb4fb7.png" alt="24/7 Support" className="w-24 xl:w-32 h-24 xl:h-32" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
+          <div className="flex justify-between items-center">
+            <div className="max-w-[60%]">
+              <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
+                Safety
+              </p>
+              <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
+                Non-custodial
+              </p>
+              <p className="text-[14px] xl:text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
+                Crypto is sent directly to your wallet, we don&apos;t store it on our service.
+              </p>
+            </div>
+            <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
+              <img src="/picture4-9dd3430e0f4506b07e22b35c676f5322.png" alt="Safety" className="w-24 xl:w-32 h-24 xl:h-32" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="relative mt-48">
+        <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-[30px] w-[83.3vw] max-w-[1000px] h-[250px] shadow-lg flex flex-col items-center justify-center py-8 sm:py-12 md:py-16">
+          <h2 className="text-[24px] sm:text-[32px] md:text-[40px] font-semibold" style={{ color: '#141a2e' }}>
+            Start Swapping Crypto
+          </h2>
+          <p className="mt-2 sm:mt-4 text-[12px] sm:text-[14px] md:text-[16px] text-center max-w-[80%] sm:max-w-[70%] md:max-w-[60%] mx-auto" style={{ color: '#3f5878' }}>
+            Just make the first exchange to see how easy and profitable it is.
+          </p>
+          <button
+            className="mt-4 sm:mt-6 bg-gradient-to-r from-[#3F7AF7] to-[#7F31FF] text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg font-medium transition-all duration-200 hover:opacity-90 hover:scale-105 text-[12px] sm:text-[14px] md:text-[16px]"
+          >
+            Create an exchange
+          </button>
+        </div>
+      </div>
+      <div className="w-full bg-white" id="how-it-works">
+        <div className="max-w-[1200px] mx-auto pt-60 pb-40">
+          <h2 className="text-center text-[24px] sm:text-[32px] md:text-[40px] font-semibold" style={{ color: '#141a2e' }}>How It Works</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mt-12 px-6 sm:px-8">
+            <div className="bg-[#f7f9fc] rounded-[20px] p-6 sm:p-8">
+              <div className="w-12 h-12 rounded-full bg-[#0f75fc] text-white flex items-center justify-center text-[18px] sm:text-[20px] font-semibold">1</div>
+              <h3 className="mt-4 text-[16px] sm:text-[18px] md:text-[20px] font-semibold" style={{ color: '#141a2e' }}>Choose crypto</h3>
+              <p className="mt-2 text-[12px] sm:text-[14px] text-[#3f5878]">Select the crypto you want to exchange and enter the amount.</p>
+            </div>
+            <div className="bg-[#f7f9fc] rounded-[20px] p-6 sm:p-8">
+              <div className="w-12 h-12 rounded-full bg-[#0f75fc] text-white flex items-center justify-center text-[18px] sm:text-[20px] font-semibold">2</div>
+              <h3 className="mt-4 text-[16px] sm:text-[18px] md:text-[20px] font-semibold" style={{ color: '#141a2e' }}>Enter address</h3>
+              <p className="mt-2 text-[12px] sm:text-[14px] text-[#3f5878]">Provide the wallet address for receiving your exchanged crypto.</p>
+            </div>
+            <div className="bg-[#f7f9fc] rounded-[20px] p-6 sm:p-8">
+              <div className="w-12 h-12 rounded-full bg-[#0f75fc] text-white flex items-center justify-center text-[18px] sm:text-[20px] font-semibold">3</div>
+              <h3 className="mt-4 text-[16px] sm:text-[18px] md:text-[20px] font-semibold" style={{ color: '#141a2e' }}>Make deposit</h3>
+              <p className="mt-2 text-[12px] sm:text-[14px] text-[#3f5878]">Send your crypto to the generated address to start the exchange.</p>
+            </div>
+            <div className="bg-[#f7f9fc] rounded-[20px] p-6 sm:p-8">
+              <div className="w-12 h-12 rounded-full bg-[#0f75fc] text-white flex items-center justify-center text-[18px] sm:text-[20px] font-semibold">4</div>
+              <h3 className="mt-4 text-[16px] sm:text-[18px] md:text-[20px] font-semibold" style={{ color: '#141a2e' }}>Get crypto</h3>
+              <p className="mt-2 text-[12px] sm:text-[14px] text-[#3f5878]">Receive your exchanged cryptocurrency in your wallet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="w-full" style={{ backgroundColor: '#010e27' }}>
+        <div className="max-w-[1200px] mx-auto py-40">
+        </div>
+        <div className="w-full" style={{ backgroundColor: '#010c22' }}>
+          <div className="max-w-[1200px] mx-auto py-8">
+            <p className="text-center text-[14px] font-semibold" style={{ color: '#859ab5' }}>
+            &copy; 2018-2024 SimpleSwap
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
