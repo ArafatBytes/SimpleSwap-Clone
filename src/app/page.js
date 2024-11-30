@@ -129,6 +129,7 @@ export default function Home() {
                 <div className="hidden xl:flex items-center">
                   <nav className="flex gap-8 mr-8">
                     <Link href="/" className="text-white hover:text-gray-300">Home</Link>
+                    <Link href="/dashboard" className="text-white hover:text-gray-300">Dashboard</Link>
                     <button 
                       onClick={() => scrollToSection('how-it-works')} 
                       className="text-[12px] sm:text-[14px] md:text-[16px] text-white/80 hover:text-white transition-colors"
@@ -174,7 +175,7 @@ export default function Home() {
                     </div>
                   </nav>
                   <div className="flex gap-4">
-                    <Link href="/" className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors">
+                    <Link href="/login" className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors">
                       Login
                     </Link>
                     <Link href="/signup" className="text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors">
@@ -193,6 +194,9 @@ export default function Home() {
                 <div className="px-6 py-6 space-y-4">
                   <Link href="/" className="block text-white hover:text-gray-300 py-2 border-b border-white/10">
                     Home
+                  </Link>
+                  <Link href="/dashboard" className="block text-white hover:text-gray-300 py-2 border-b border-white/10">
+                    Dashboard
                   </Link>
                   <button 
                     onClick={() => scrollToSection('how-it-works')}
@@ -234,7 +238,7 @@ export default function Home() {
                     )}
                   </div>
                   <div className="pt-4 space-y-3">
-                    <Link href="/" className="block text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center">
+                    <Link href="/login" className="block text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center">
                       Login
                     </Link>
                     <Link href="/signup" className="block text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors text-center">
@@ -247,266 +251,273 @@ export default function Home() {
           </div>
         </div>
         <main>
-          <div className="flex flex-col items-center pt-32">
-            <h1 className="text-white font-medium" style={{ 
-              fontFamily: 'Poppins, Inter, sans-serif',
-              fontSize: 'min(8vw, 53px)'
-            }}>Crypto Exchange</h1>
-            <p className="text-white/80 mt-2 font-normal" style={{ 
-              fontFamily: 'Poppins, Inter, sans-serif',
-              fontSize: 'min(3.5vw, 19px)'
-            }}>Free from sign-up, limits, complications</p>
+          <div className="flex flex-col items-center pt-32 relative">
+            <div className="absolute inset-0 bg-cover bg-no-repeat bg-center z-[1]" style={{ 
+              backgroundImage: `url('/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwMCIgaGVpZ2h0PSIxMjI1IiB2aWV3Qm94PSIwIDAgMTUwMCAxMjI1IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8bWFzayBpZD0ibWFzazAiIG1hc2stdHlwZT0iYWxwaGEiIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiIHg9Ii0yMTAiIHk9.svg')`,
+              opacity: 0.3,
+              height: '100vh'
+            }}></div>
+            <div className="relative z-[2] w-full flex flex-col items-center">
+              <h1 className="text-white font-medium" style={{ 
+                fontFamily: 'Poppins, Inter, sans-serif',
+                fontSize: 'min(8vw, 53px)'
+              }}>Crypto Exchange</h1>
+              <p className="text-white/80 mt-2 font-normal" style={{ 
+                fontFamily: 'Poppins, Inter, sans-serif',
+                fontSize: 'min(3.5vw, 19px)'
+              }}>Free from sign-up, limits, complications</p>
 
-            <div className="mt-8 bg-white rounded-[30px] p-6 sm:p-8 md:p-12 w-[90%] sm:w-full max-w-2xl mx-auto">
-              <div className="flex justify-center">
-                <h2 style={{ 
-                  fontFamily: 'Poppins, Inter, sans-serif',
-                  fontSize: 'min(3vw, 15px)',
-                  fontWeight: '500',
-                  color: '#3f5878'
-                }}>Crypto Exchange</h2>
-              </div>
-              <div className="mt-8 flex flex-col gap-[8px]">
-                <div className="w-full rounded-xl h-[70px] flex overflow-visible">
-                  <div 
-                    ref={sendDropdownRef}
-                    className="w-[35%] h-full bg-[#edf1f7] flex items-center justify-between px-4 sm:px-6 relative cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowSendDropdown(!showSendDropdown);
-                      setShowGetDropdown(false);
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <img 
-                        src={selectedSendCrypto.icon} 
-                        alt={selectedSendCrypto.symbol} 
-                        className="w-5 h-5 sm:w-6 sm:h-6" 
-                      />
-                      <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">{selectedSendCrypto.symbol}</span>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-[#3f5878]">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                    </svg>
-                    
-                    {showSendDropdown && (
-                      <div className="absolute top-[75px] left-0 w-[calc(90vw-2rem)] max-w-[calc(32rem-2rem)] sm:w-[calc(100vw-5rem)] md:w-[calc(100vw-7rem)] bg-white rounded-xl shadow-lg overflow-y-auto z-20 max-h-[50vh]">
-                        <div className="bg-white p-2 border-b">
-                          <input
-                            type="text"
-                            placeholder="Search cryptocurrency..."
-                            value={sendSearchQuery}
-                            onChange={(e) => setSendSearchQuery(e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm text-[#1a2b4b]"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        <div className="bg-white border-b">
-                          <div className="flex overflow-x-auto p-2 gap-2 scrollbar-hide">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedCategory('all');
-                              }}
-                              className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
-                                selectedCategory === 'all'
-                                  ? 'bg-blue-500 text-white'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              All
-                            </button>
-                            {['popular', 'new', 'gainers24h', 'losers24h', 'stablecoins'].map((category) => (
-                              <button
-                                key={category}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory(category);
-                                }}
-                                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
-                                  selectedCategory === category
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                              >
-                                {category === 'gainers24h' ? '24h Gainers' :
-                                 category === 'losers24h' ? '24h Losers' :
-                                 category === 'stablecoins' ? 'Stablecoins' :
-                                 category.charAt(0).toUpperCase() + category.slice(1)}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          {getFilteredCryptos()
-                            .filter(crypto => 
-                              crypto.name.toLowerCase().includes(sendSearchQuery.toLowerCase()) ||
-                              crypto.symbol.toLowerCase().includes(sendSearchQuery.toLowerCase())
-                            )
-                            .map((crypto) => (
-                              <div
-                                key={crypto.symbol}
-                                className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedSendCrypto(crypto);
-                                  setShowSendDropdown(false);
-                                  setSendSearchQuery('');
-                                }}
-                              >
-                                <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
-                                <div>
-                                  <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol}</p>
-                                  <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 bg-[#edf1f7] ml-[8px] flex items-center px-4 sm:px-6">
-                    <input 
-                      type="text"
-                      value={sendAmount}
-                      onChange={(e) => handleNumberInput(e.target.value, setSendAmount)}
-                      placeholder="You Send" 
-                      className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium" 
-                      style={{ 
-                        fontFamily: 'Poppins, Inter, sans-serif',
-                        color: '#3f5878'
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="w-full rounded-xl h-[70px] flex overflow-visible">
-                  <div 
-                    ref={getDropdownRef}
-                    className="w-[35%] h-full bg-[#edf1f7] flex items-center justify-between px-4 sm:px-6 relative cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowGetDropdown(!showGetDropdown);
-                      setShowSendDropdown(false);
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <img 
-                        src={selectedGetCrypto.icon} 
-                        alt={selectedGetCrypto.symbol} 
-                        className="w-5 h-5 sm:w-6 sm:h-6" 
-                      />
-                      <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">{selectedGetCrypto.symbol}</span>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-[#3f5878]">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                    </svg>
-                    
-                    {showGetDropdown && (
-                      <div className="absolute top-[75px] left-0 w-[calc(90vw-2rem)] max-w-[calc(32rem-2rem)] sm:w-[calc(100vw-5rem)] md:w-[calc(100vw-7rem)] bg-white rounded-xl shadow-lg overflow-y-auto z-20 max-h-[50vh]">
-                        <div className="bg-white p-2 border-b">
-                          <input
-                            type="text"
-                            placeholder="Search cryptocurrency..."
-                            value={getSearchQuery}
-                            onChange={(e) => setGetSearchQuery(e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm text-[#1a2b4b]"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        <div className="bg-white border-b">
-                          <div className="flex overflow-x-auto p-2 gap-2 scrollbar-hide">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedCategory('all');
-                              }}
-                              className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
-                                selectedCategory === 'all'
-                                  ? 'bg-blue-500 text-white'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              All
-                            </button>
-                            {['popular', 'new', 'gainers24h', 'losers24h', 'stablecoins'].map((category) => (
-                              <button
-                                key={category}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory(category);
-                                }}
-                                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
-                                  selectedCategory === category
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                              >
-                                {category === 'gainers24h' ? '24h Gainers' :
-                                 category === 'losers24h' ? '24h Losers' :
-                                 category === 'stablecoins' ? 'Stablecoins' :
-                                 category.charAt(0).toUpperCase() + category.slice(1)}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          {getFilteredCryptos()
-                            .filter(crypto => 
-                              crypto.name.toLowerCase().includes(getSearchQuery.toLowerCase()) ||
-                              crypto.symbol.toLowerCase().includes(getSearchQuery.toLowerCase())
-                            )
-                            .map((crypto) => (
-                              <div
-                                key={crypto.symbol}
-                                className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedGetCrypto(crypto);
-                                  setShowGetDropdown(false);
-                                  setGetSearchQuery('');
-                                }}
-                              >
-                                <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
-                                <div>
-                                  <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol}</p>
-                                  <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 bg-[#edf1f7] ml-[8px] flex items-center px-4 sm:px-6">
-                    <input 
-                      type="text"
-                      value={getAmount}
-                      onChange={(e) => handleNumberInput(e.target.value, setGetAmount)}
-                      placeholder="You Get" 
-                      className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium" 
-                      style={{ 
-                        fontFamily: 'Poppins, Inter, sans-serif',
-                        color: '#3f5878'
-                      }}
-                    />
-                  </div>
-                </div>
-                <button 
-                  className="w-full h-[70px] rounded-xl text-white font-semibold mt-4 transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc]"
-                  style={{ 
+              <div className="mt-8 bg-white rounded-[30px] p-6 sm:p-8 md:p-12 w-[90%] sm:w-full max-w-2xl mx-auto">
+                <div className="flex justify-center">
+                  <h2 style={{ 
                     fontFamily: 'Poppins, Inter, sans-serif',
-                    fontSize: 'min(3.5vw, 16px)',
-                    fontWeight: '600'
-                  }}
-                >
-                  Exchange
-                </button>
+                    fontSize: 'min(3vw, 15px)',
+                    fontWeight: '500',
+                    color: '#3f5878'
+                  }}>Crypto Exchange</h2>
+                </div>
+                <div className="mt-8 flex flex-col gap-[8px]">
+                  <div className="w-full rounded-xl h-[70px] flex overflow-visible">
+                    <div 
+                      ref={sendDropdownRef}
+                      className="w-[35%] h-full bg-[#edf1f7] flex items-center justify-between px-4 sm:px-6 relative cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowSendDropdown(!showSendDropdown);
+                        setShowGetDropdown(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={selectedSendCrypto.icon} 
+                          alt={selectedSendCrypto.symbol} 
+                          className="w-5 h-5 sm:w-6 sm:h-6" 
+                        />
+                        <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">{selectedSendCrypto.symbol}</span>
+                      </div>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-[#3f5878]">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                      </svg>
+                      
+                      {showSendDropdown && (
+                        <div className="absolute top-[75px] left-0 w-[calc(90vw-2rem)] max-w-[calc(32rem-2rem)] sm:w-[calc(100vw-5rem)] md:w-[calc(100vw-7rem)] bg-white rounded-xl shadow-lg overflow-y-auto z-20 max-h-[50vh]">
+                          <div className="bg-white p-2 border-b">
+                            <input
+                              type="text"
+                              placeholder="Search cryptocurrency..."
+                              value={sendSearchQuery}
+                              onChange={(e) => setSendSearchQuery(e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm text-[#1a2b4b]"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                          <div className="bg-white border-b">
+                            <div className="flex overflow-x-auto p-2 gap-2 scrollbar-hide">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCategory('all');
+                                }}
+                                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
+                                  selectedCategory === 'all'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                All
+                              </button>
+                              {['popular', 'new', 'gainers24h', 'losers24h', 'stablecoins'].map((category) => (
+                                <button
+                                  key={category}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCategory(category);
+                                  }}
+                                  className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
+                                    selectedCategory === category
+                                      ? 'bg-blue-500 text-white'
+                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {category === 'gainers24h' ? '24h Gainers' :
+                                   category === 'losers24h' ? '24h Losers' :
+                                   category === 'stablecoins' ? 'Stablecoins' :
+                                   category.charAt(0).toUpperCase() + category.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            {getFilteredCryptos()
+                              .filter(crypto => 
+                                crypto.name.toLowerCase().includes(sendSearchQuery.toLowerCase()) ||
+                                crypto.symbol.toLowerCase().includes(sendSearchQuery.toLowerCase())
+                              )
+                              .map((crypto) => (
+                                <div
+                                  key={crypto.symbol}
+                                  className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedSendCrypto(crypto);
+                                    setShowSendDropdown(false);
+                                    setSendSearchQuery('');
+                                  }}
+                                >
+                                  <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
+                                  <div>
+                                    <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol}</p>
+                                    <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 bg-[#edf1f7] ml-[8px] flex items-center px-4 sm:px-6">
+                      <input 
+                        type="text"
+                        value={sendAmount}
+                        onChange={(e) => handleNumberInput(e.target.value, setSendAmount)}
+                        placeholder="You Send" 
+                        className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium" 
+                        style={{ 
+                          fontFamily: 'Poppins, Inter, sans-serif',
+                          color: '#3f5878'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="w-full rounded-xl h-[70px] flex overflow-visible">
+                    <div 
+                      ref={getDropdownRef}
+                      className="w-[35%] h-full bg-[#edf1f7] flex items-center justify-between px-4 sm:px-6 relative cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowGetDropdown(!showGetDropdown);
+                        setShowSendDropdown(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <img 
+                          src={selectedGetCrypto.icon} 
+                          alt={selectedGetCrypto.symbol} 
+                          className="w-5 h-5 sm:w-6 sm:h-6" 
+                        />
+                        <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">{selectedGetCrypto.symbol}</span>
+                      </div>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-[#3f5878]">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                      </svg>
+                      
+                      {showGetDropdown && (
+                        <div className="absolute top-[75px] left-0 w-[calc(90vw-2rem)] max-w-[calc(32rem-2rem)] sm:w-[calc(100vw-5rem)] md:w-[calc(100vw-7rem)] bg-white rounded-xl shadow-lg overflow-y-auto z-20 max-h-[50vh]">
+                          <div className="bg-white p-2 border-b">
+                            <input
+                              type="text"
+                              placeholder="Search cryptocurrency..."
+                              value={getSearchQuery}
+                              onChange={(e) => setGetSearchQuery(e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm text-[#1a2b4b]"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                          <div className="bg-white border-b">
+                            <div className="flex overflow-x-auto p-2 gap-2 scrollbar-hide">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCategory('all');
+                                }}
+                                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
+                                  selectedCategory === 'all'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                All
+                              </button>
+                              {['popular', 'new', 'gainers24h', 'losers24h', 'stablecoins'].map((category) => (
+                                <button
+                                  key={category}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCategory(category);
+                                  }}
+                                  className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
+                                    selectedCategory === category
+                                      ? 'bg-blue-500 text-white'
+                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {category === 'gainers24h' ? '24h Gainers' :
+                                   category === 'losers24h' ? '24h Losers' :
+                                   category === 'stablecoins' ? 'Stablecoins' :
+                                   category.charAt(0).toUpperCase() + category.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            {getFilteredCryptos()
+                              .filter(crypto => 
+                                crypto.name.toLowerCase().includes(getSearchQuery.toLowerCase()) ||
+                                crypto.symbol.toLowerCase().includes(getSearchQuery.toLowerCase())
+                              )
+                              .map((crypto) => (
+                                <div
+                                  key={crypto.symbol}
+                                  className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedGetCrypto(crypto);
+                                    setShowGetDropdown(false);
+                                    setGetSearchQuery('');
+                                  }}
+                                >
+                                  <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
+                                  <div>
+                                    <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol}</p>
+                                    <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 bg-[#edf1f7] ml-[8px] flex items-center px-4 sm:px-6">
+                      <input 
+                        type="text"
+                        value={getAmount}
+                        onChange={(e) => handleNumberInput(e.target.value, setGetAmount)}
+                        placeholder="You Get" 
+                        className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium" 
+                        style={{ 
+                          fontFamily: 'Poppins, Inter, sans-serif',
+                          color: '#3f5878'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <button 
+                    className="w-full h-[70px] rounded-xl text-white font-semibold mt-4 transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc]"
+                    style={{ 
+                      fontFamily: 'Poppins, Inter, sans-serif',
+                      fontSize: 'min(3.5vw, 16px)',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Exchange
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </main>
       </div>
-      <div className="grid sm:grid-cols-2 grid-cols-1 gap-8 mt-48 xl:w-[1200px] sm:w-[600px] w-[90%] mx-auto">
+      <div className="grid sm:grid-cols-2 grid-cols-1 gap-8 mt-64 xl:w-[1200px] sm:w-[600px] w-[90%] mx-auto">
         <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
           <div className="flex justify-between items-center">
             <div className="max-w-[60%]">
@@ -580,7 +591,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-      <div className="relative mt-48">
+      <div className="relative mt-64">
         <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-[30px] w-[83.3vw] max-w-[1000px] h-[250px] shadow-lg flex flex-col items-center justify-center py-8 sm:py-12 md:py-16">
           <h2 className="text-[24px] sm:text-[32px] md:text-[40px] font-semibold" style={{ color: '#141a2e' }}>
             Start Swapping Crypto

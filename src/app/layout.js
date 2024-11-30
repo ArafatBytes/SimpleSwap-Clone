@@ -1,4 +1,5 @@
 import localFont from "next/font/local";
+import { Inter, Playfair_Display } from 'next/font/google';
 import "./globals.css";
 
 const geistSans = localFont({
@@ -12,6 +13,9 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+const inter = Inter({ subsets: ['latin'] });
+const playfair = Playfair_Display({ subsets: ['latin'] });
+
 export const metadata = {
   title: "SimpleSwap Clone",
   description: "A modern cryptocurrency exchange platform",
@@ -23,8 +27,11 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/favicon1b66.ico" />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${inter.className} antialiased`}
       >
         {children}
       </body>
