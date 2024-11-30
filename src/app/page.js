@@ -167,9 +167,9 @@ export default function Home() {
                       {isDropdownOpen && (
                         <div className="absolute right-0 mt-2 w-64 rounded-lg shadow-lg bg-[#173f88] py-4 px-4">
                           <p className="text-white text-sm mb-3">You don&apos;t have any exchanges yet</p>
-                          <button className="w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm">
+                          <Link href="/exchange" className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center">
                             Create a new exchange
-                          </button>
+                          </Link>
                         </div>
                       )}
                     </div>
@@ -231,9 +231,9 @@ export default function Home() {
                     {isDropdownOpen && (
                       <div className="mt-2 rounded-lg bg-[#173f88] py-4 px-4">
                         <p className="text-white text-sm mb-3">You don&apos;t have any exchanges yet</p>
-                        <button className="w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm">
+                        <Link href="/exchange" className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center">
                           Create a new exchange
-                        </button>
+                        </Link>
                       </div>
                     )}
                   </div>
@@ -501,16 +501,18 @@ export default function Home() {
                       />
                     </div>
                   </div>
-                  <button 
-                    className="w-full h-[70px] rounded-xl text-white font-semibold mt-4 transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc]"
-                    style={{ 
-                      fontFamily: 'Poppins, Inter, sans-serif',
-                      fontSize: 'min(3.5vw, 16px)',
-                      fontWeight: '600'
-                    }}
-                  >
-                    Exchange
-                  </button>
+                  <Link href="/exchange" className="block">
+                    <button 
+                      className="w-full h-[70px] rounded-xl text-white font-semibold mt-4 transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc]"
+                      style={{ 
+                        fontFamily: 'Poppins, Inter, sans-serif',
+                        fontSize: 'min(4vw, 18px)',
+                        fontWeight: '600'
+                      }}
+                    >
+                      Exchange
+                    </button>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -599,11 +601,9 @@ export default function Home() {
           <p className="mt-2 sm:mt-4 text-[12px] sm:text-[14px] md:text-[16px] text-center max-w-[80%] sm:max-w-[70%] md:max-w-[60%] mx-auto" style={{ color: '#3f5878' }}>
             Just make the first exchange to see how easy and profitable it is.
           </p>
-          <button
-            className="mt-4 sm:mt-6 bg-gradient-to-r from-[#3F7AF7] to-[#7F31FF] text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg font-medium transition-all duration-200 hover:opacity-90 hover:scale-105 text-[12px] sm:text-[14px] md:text-[16px]"
-          >
+          <Link href="/exchange" className="mt-4 sm:mt-6 bg-gradient-to-r from-[#3F7AF7] to-[#7F31FF] text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg font-medium transition-all duration-200 hover:opacity-90 hover:scale-105 text-[12px] sm:text-[14px] md:text-[16px]">
             Create an exchange
-          </button>
+          </Link>
         </div>
       </div>
       <div className="w-full bg-white" id="how-it-works">
