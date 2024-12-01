@@ -50,17 +50,15 @@ export default function Login() {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('userEmail', formData.email);
+        router.push('/');
+      } else {
+        const data = await response.json();
         throw new Error(data.error || 'Something went wrong');
       }
-
-      // Store token in localStorage
-      localStorage.setItem('token', data.token);
-      
-      // Redirect to dashboard or home
-      router.push('/');
     } catch (err) {
       setError(err.message);
     } finally {

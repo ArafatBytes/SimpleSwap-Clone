@@ -25,9 +25,13 @@ export default function Exchange() {
   const [searchQuery, setSearchQuery] = useState('');
   const [step, setStep] = useState(1);
   const [walletAddress, setWalletAddress] = useState('');
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [isButtonClick, setIsButtonClick] = useState(false);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
+  const accountDropdownRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -37,11 +41,15 @@ export default function Exchange() {
       if (getDropdownRef.current && !getDropdownRef.current.contains(event.target)) {
         setShowGetDropdown(false);
       }
+      if (!isButtonClick && accountDropdownRef.current && !accountDropdownRef.current.contains(event.target)) {
+        setIsAccountDropdownOpen(false);
+      }
+      setIsButtonClick(false);
     }
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isButtonClick]);
 
   useEffect(() => {
     if (step === 4) {
@@ -53,9 +61,12 @@ export default function Exchange() {
   }, [step]);
 
   useEffect(() => {
-    // Check if user is authenticated
     const token = localStorage.getItem('token');
-    setIsAuthenticated(!!token);
+    const email = localStorage.getItem('userEmail');
+    if (token) {
+      setIsAuthenticated(true);
+      setUserEmail(email || '');
+    }
   }, []);
 
   const handleLogout = () => {
@@ -235,12 +246,79 @@ export default function Exchange() {
                   </nav>
                   <div className="flex gap-4">
                     {isAuthenticated ? (
-                      <button
-                        onClick={handleLogout}
-                        className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors"
-                      >
-                        Logout
-                      </button>
+                      <div className="relative" ref={accountDropdownRef}>
+                        <button 
+                          onClick={() => {
+                            setIsButtonClick(true);
+                            setIsAccountDropdownOpen(!isAccountDropdownOpen);
+                          }}
+                          className="flex items-center gap-2 text-white hover:text-gray-300 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          <div className="p-1.5 bg-white/10 backdrop-blur-sm rounded-full">
+                            <svg 
+                              className="w-5 h-5" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                strokeWidth={2} 
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+                              />
+                            </svg>
+                          </div>
+                          <span>My Account</span>
+                          <svg 
+                            className={`w-4 h-4 transition-transform ${isAccountDropdownOpen ? 'rotate-180' : ''}`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {isAccountDropdownOpen && (
+                          <div className="absolute right-0 mt-2 w-64 rounded-lg shadow-lg bg-[#173f88] py-2">
+                            <div className="px-4 py-2 text-sm text-gray-300 border-b border-gray-600 break-all flex items-center gap-2">
+                              <svg
+                                className="w-4 h-4 text-gray-300 flex-shrink-0"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                              </svg>
+                              {userEmail}
+                            </div>
+                            <button
+                              onClick={handleLogout}
+                              className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
+                                />
+                              </svg>
+                              Logout
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <>
                         <Link href="/login" className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors">
@@ -309,12 +387,79 @@ export default function Exchange() {
                   </div>
                   <div className="pt-4 space-y-3">
                     {isAuthenticated ? (
-                      <button
-                        onClick={handleLogout}
-                        className="block w-full text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center"
-                      >
-                        Logout
-                      </button>
+                      <div className="relative">
+                        <button 
+                          onClick={() => {
+                            setIsButtonClick(true);
+                            setIsAccountDropdownOpen(!isAccountDropdownOpen);
+                          }}
+                          className="flex items-center gap-2 text-white hover:text-gray-300 px-4 py-2 rounded-lg transition-colors w-full"
+                        >
+                          <div className="p-1.5 bg-white/10 backdrop-blur-sm rounded-full">
+                            <svg 
+                              className="w-5 h-5" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                strokeWidth={2} 
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+                              />
+                            </svg>
+                          </div>
+                          <span>My Account</span>
+                          <svg 
+                            className={`w-4 h-4 transition-transform ${isAccountDropdownOpen ? 'rotate-180' : ''}`}
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {isAccountDropdownOpen && (
+                          <div className="mt-2 w-[calc(100%-48px)] mx-auto rounded-lg shadow-lg bg-[#173f88] py-2">
+                            <div className="px-4 py-2 text-sm text-gray-300 border-b border-gray-600 break-all flex items-center gap-2">
+                              <svg
+                                className="w-4 h-4 text-gray-300 flex-shrink-0"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                              </svg>
+                              {userEmail}
+                            </div>
+                            <button
+                              onClick={handleLogout}
+                              className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
+                                />
+                              </svg>
+                              Logout
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <>
                         <Link href="/login" className="block text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center">
@@ -332,7 +477,7 @@ export default function Exchange() {
           </div>
 
           <div className="flex-1 flex items-center justify-center min-h-[calc(100vh-72px)]">
-            <div className="max-w-7xl w-full mx-auto px-6 sm:px-8 lg:px-12 py-8">
+            <div className="max-w-7xl w-full mx-auto px-6 sm:px-8 lg:px-12 py-4 -mt-32">
               <div className="bg-white/10 backdrop-blur-lg rounded-[30px] p-6 sm:p-8 md:p-12 max-w-2xl mx-auto shadow-xl border border-white/20">
                 <div className="flex justify-between items-center mb-8">
                   <h1 className="text-white text-xl sm:text-2xl font-medium">
