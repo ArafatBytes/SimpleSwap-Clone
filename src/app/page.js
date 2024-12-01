@@ -3,10 +3,14 @@
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from 'next/navigation';
 import { cryptocurrencies } from '../data/cryptocurrencies';
 import { cryptoCategories, getCoinsByCategory } from '../data/cryptoCategories';
+import { toast } from 'react-toastify';
 
 export default function Home() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [sendAmount, setSendAmount] = useState('');
@@ -22,6 +26,38 @@ export default function Home() {
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
+
+  useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    setIsAuthenticated(!!token);
+  }, []);
+
+  const handleLogout = () => {
+    toast.info('Logging out...', {
+      position: "top-right",
+      autoClose: 2000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      style: {
+        background: 'rgba(23, 63, 136, 0.6)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+        color: 'white'
+      }
+    });
+    
+    setTimeout(() => {
+      localStorage.removeItem('token');
+      setIsAuthenticated(false);
+      window.location.reload();
+    }, 2000);
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -175,12 +211,23 @@ export default function Home() {
                     </div>
                   </nav>
                   <div className="flex gap-4">
-                    <Link href="/login" className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors">
-                      Login
-                    </Link>
-                    <Link href="/signup" className="text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors">
-                      Get an Account
-                    </Link>
+                    {isAuthenticated ? (
+                      <button
+                        onClick={handleLogout}
+                        className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors"
+                      >
+                        Logout
+                      </button>
+                    ) : (
+                      <>
+                        <Link href="/login" className="text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors">
+                          Login
+                        </Link>
+                        <Link href="/signup" className="text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors">
+                          Get an account
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </div>
               </header>
@@ -238,12 +285,23 @@ export default function Home() {
                     )}
                   </div>
                   <div className="pt-4 space-y-3">
-                    <Link href="/login" className="block text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center">
-                      Login
-                    </Link>
-                    <Link href="/signup" className="block text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors text-center">
-                      Get an Account
-                    </Link>
+                    {isAuthenticated ? (
+                      <button
+                        onClick={handleLogout}
+                        className="block w-full text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center"
+                      >
+                        Logout
+                      </button>
+                    ) : (
+                      <>
+                        <Link href="/login" className="block text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center">
+                          Login
+                        </Link>
+                        <Link href="/signup" className="block text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors text-center">
+                          Get an account
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

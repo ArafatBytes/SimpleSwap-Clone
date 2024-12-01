@@ -1,6 +1,9 @@
 import localFont from "next/font/local";
 import { Inter, Playfair_Display } from 'next/font/google';
 import "./globals.css";
+import 'react-toastify/dist/ReactToastify.css';
+import './styles/toast.css';
+import { ToastContainer } from 'react-toastify';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -34,6 +37,19 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} ${inter.className} antialiased`}
       >
         {children}
+        <ToastContainer
+          position="top-right"
+          autoClose={2000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="dark"
+          toastClassName="backdrop-blur-md"
+        />
       </body>
     </html>
   );
