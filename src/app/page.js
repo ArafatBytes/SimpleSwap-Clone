@@ -4,9 +4,9 @@ import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
-import { cryptocurrencies } from '../data/cryptocurrencies';
 import { cryptoCategories, getCoinsByCategory } from '../data/cryptoCategories';
 import { toast } from 'react-toastify';
+import { getExchangeRate, getAllCurrencies } from '../lib/api/simpleswap';
 
 export default function Home() {
   const router = useRouter();
@@ -15,8 +15,8 @@ export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [sendAmount, setSendAmount] = useState('');
   const [getAmount, setGetAmount] = useState('');
-  const [selectedSendCrypto, setSelectedSendCrypto] = useState(cryptocurrencies[0]);
-  const [selectedGetCrypto, setSelectedGetCrypto] = useState(cryptocurrencies[1]);
+  const [selectedSendCrypto, setSelectedSendCrypto] = useState(null);
+  const [selectedGetCrypto, setSelectedGetCrypto] = useState(null);
   const [showSendDropdown, setShowSendDropdown] = useState(false);
   const [showGetDropdown, setShowGetDropdown] = useState(false);
   const [sendSearchQuery, setSendSearchQuery] = useState('');
@@ -26,6 +26,8 @@ export default function Home() {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [isButtonClick, setIsButtonClick] = useState(false);
+  const [cryptocurrencies, setCryptocurrencies] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -39,6 +41,33 @@ export default function Home() {
       setIsAuthenticated(true);
       setUserEmail(email || '');
     }
+  }, []);
+
+  useEffect(() => {
+    const fetchCurrencies = async () => {
+      try {
+        setIsLoading(true);
+        const currencies = await getAllCurrencies();
+        if (currencies.length > 0) {
+          setCryptocurrencies(currencies);
+          
+          // Find BTC and ETH in the currencies list
+          const btc = currencies.find(c => c.symbol.toUpperCase() === 'BTC');
+          const eth = currencies.find(c => c.symbol.toUpperCase() === 'ETH');
+          
+          // Set BTC and ETH as default if found, otherwise use first two currencies
+          setSelectedSendCrypto(btc || currencies[0]);
+          setSelectedGetCrypto(eth || currencies[1]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch currencies:', error);
+        toast.error('Failed to load currencies. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCurrencies();
   }, []);
 
   const handleLogout = () => {
@@ -101,33 +130,85 @@ export default function Home() {
     setIsMobileMenuOpen(false);
   };
 
-  const handleNumberInput = (value, setter) => {
+  const handleNumberInput = async (value, setter) => {
     // Allow empty string
     if (value === '') {
       setter('');
+      if (setter === setSendAmount) {
+        setGetAmount('');
+      }
       return;
     }
 
     // Only allow numbers and one decimal point
     if (/^\d*\.?\d*$/.test(value)) {
       setter(value);
+      
+      // If updating send amount, calculate and update get amount
+      if (setter === setSendAmount && parseFloat(value) > 0) {
+        try {
+          const fromSymbol = selectedSendCrypto.symbol;
+          const toSymbol = selectedGetCrypto.symbol;
+          
+          console.log('Requesting exchange rate for:', {
+            fromSymbol,
+            toSymbol,
+            value
+          });
+          
+          const exchangeRate = await getExchangeRate(
+            fromSymbol,
+            toSymbol,
+            value
+          );
+          
+          console.log('Received exchange rate:', exchangeRate);
+          
+          // Format and set the exchange rate
+          if (exchangeRate) {
+            const formattedRate = parseFloat(exchangeRate).toFixed(8);
+            console.log('Setting formatted rate:', formattedRate);
+            setGetAmount(formattedRate);
+          } else {
+            setGetAmount('');
+          }
+        } catch (error) {
+          console.error('Exchange rate error:', error);
+          setGetAmount('');
+        }
+      }
     }
   };
 
-  // Filter cryptocurrencies based on category and search query
-  const getFilteredCryptos = () => {
-    let filteredList = selectedCategory === 'all' 
-      ? cryptocurrencies 
-      : cryptocurrencies.filter(crypto => getCoinsByCategory(selectedCategory).includes(crypto.symbol));
+  useEffect(() => {
+    console.log('getAmount changed to:', getAmount);
+  }, [getAmount]);
 
+  // Filter cryptocurrencies based on category and search query
+  const getFilteredCryptos = (searchQuery, category = 'all') => {
+    let filteredList = cryptocurrencies;
+
+    // First filter by category
+    if (category !== 'all') {
+      filteredList = cryptocurrencies.filter(crypto => 
+        cryptoCategories[category].includes(crypto.symbol.toUpperCase())
+      );
+    }
+
+    // Then filter by search query if exists
     if (searchQuery) {
       return filteredList.filter(crypto => 
         crypto.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         crypto.symbol.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
+
     return filteredList;
   };
+
+  // Get filtered lists for both dropdowns
+  const filteredSendCryptos = getFilteredCryptos(sendSearchQuery, selectedCategory);
+  const filteredGetCryptos = getFilteredCryptos(getSearchQuery, selectedCategory);
 
   return (
     <div className="min-h-screen relative" style={{ backgroundColor: "#062763" }}>
@@ -492,12 +573,16 @@ export default function Home() {
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <img 
-                          src={selectedSendCrypto.icon} 
-                          alt={selectedSendCrypto.symbol} 
-                          className="w-5 h-5 sm:w-6 sm:h-6" 
-                        />
-                        <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">{selectedSendCrypto.symbol}</span>
+                        {selectedSendCrypto && (
+                          <img 
+                            src={selectedSendCrypto.icon} 
+                            alt={selectedSendCrypto.symbol} 
+                            className="w-5 h-5 sm:w-6 sm:h-6" 
+                          />
+                        )}
+                        <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">
+                          {selectedSendCrypto ? selectedSendCrypto.symbol.toUpperCase() : 'Select'}
+                        </span>
                       </div>
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-[#3f5878]">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -515,66 +600,43 @@ export default function Home() {
                               onClick={(e) => e.stopPropagation()}
                             />
                           </div>
-                          <div className="bg-white border-b">
-                            <div className="flex overflow-x-auto p-2 gap-2 scrollbar-hide">
+                          <div className="flex flex-wrap gap-2 p-4 border-b border-gray-100">
+                            {Object.entries(cryptoCategories).map(([key, _]) => (
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('all');
-                                }}
-                                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
-                                  selectedCategory === 'all'
+                                key={key}
+                                className={`px-3 py-1 rounded-full text-xs ${
+                                  selectedCategory === key
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCategory(key);
+                                }}
                               >
-                                All
+                                {key.charAt(0).toUpperCase() + key.slice(1)}
                               </button>
-                              {['popular', 'new', 'gainers24h', 'losers24h', 'stablecoins'].map((category) => (
-                                <button
-                                  key={category}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedCategory(category);
-                                  }}
-                                  className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
-                                    selectedCategory === category
-                                      ? 'bg-blue-500 text-white'
-                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  {category === 'gainers24h' ? '24h Gainers' :
-                                   category === 'losers24h' ? '24h Losers' :
-                                   category === 'stablecoins' ? 'Stablecoins' :
-                                   category.charAt(0).toUpperCase() + category.slice(1)}
-                                </button>
-                              ))}
-                            </div>
+                            ))}
                           </div>
                           <div>
-                            {getFilteredCryptos()
-                              .filter(crypto => 
-                                crypto.name.toLowerCase().includes(sendSearchQuery.toLowerCase()) ||
-                                crypto.symbol.toLowerCase().includes(sendSearchQuery.toLowerCase())
-                              )
-                              .map((crypto) => (
-                                <div
-                                  key={crypto.symbol}
-                                  className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedSendCrypto(crypto);
-                                    setShowSendDropdown(false);
-                                    setSendSearchQuery('');
-                                  }}
-                                >
-                                  <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
-                                  <div>
-                                    <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol}</p>
-                                    <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
-                                  </div>
+                            {filteredSendCryptos.map((crypto) => (
+                              <div
+                                key={crypto.symbol}
+                                className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedSendCrypto(crypto);
+                                  setShowSendDropdown(false);
+                                  setSendSearchQuery('');
+                                }}
+                              >
+                                <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
+                                <div>
+                                  <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol.toUpperCase()}</p>
+                                  <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
                                 </div>
-                              ))}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -604,12 +666,16 @@ export default function Home() {
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <img 
-                          src={selectedGetCrypto.icon} 
-                          alt={selectedGetCrypto.symbol} 
-                          className="w-5 h-5 sm:w-6 sm:h-6" 
-                        />
-                        <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">{selectedGetCrypto.symbol}</span>
+                        {selectedGetCrypto && (
+                          <img 
+                            src={selectedGetCrypto.icon} 
+                            alt={selectedGetCrypto.symbol} 
+                            className="w-5 h-5 sm:w-6 sm:h-6" 
+                          />
+                        )}
+                        <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">
+                          {selectedGetCrypto ? selectedGetCrypto.symbol.toUpperCase() : 'Select'}
+                        </span>
                       </div>
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-[#3f5878]">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -627,66 +693,43 @@ export default function Home() {
                               onClick={(e) => e.stopPropagation()}
                             />
                           </div>
-                          <div className="bg-white border-b">
-                            <div className="flex overflow-x-auto p-2 gap-2 scrollbar-hide">
+                          <div className="flex flex-wrap gap-2 p-4 border-b border-gray-100">
+                            {Object.entries(cryptoCategories).map(([key, _]) => (
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('all');
-                                }}
-                                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
-                                  selectedCategory === 'all'
+                                key={key}
+                                className={`px-3 py-1 rounded-full text-xs ${
+                                  selectedCategory === key
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCategory(key);
+                                }}
                               >
-                                All
+                                {key.charAt(0).toUpperCase() + key.slice(1)}
                               </button>
-                              {['popular', 'new', 'gainers24h', 'losers24h', 'stablecoins'].map((category) => (
-                                <button
-                                  key={category}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedCategory(category);
-                                  }}
-                                  className={`whitespace-nowrap px-3 py-1 rounded-full text-xs ${
-                                    selectedCategory === category
-                                      ? 'bg-blue-500 text-white'
-                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  {category === 'gainers24h' ? '24h Gainers' :
-                                   category === 'losers24h' ? '24h Losers' :
-                                   category === 'stablecoins' ? 'Stablecoins' :
-                                   category.charAt(0).toUpperCase() + category.slice(1)}
-                                </button>
-                              ))}
-                            </div>
+                            ))}
                           </div>
                           <div>
-                            {getFilteredCryptos()
-                              .filter(crypto => 
-                                crypto.name.toLowerCase().includes(getSearchQuery.toLowerCase()) ||
-                                crypto.symbol.toLowerCase().includes(getSearchQuery.toLowerCase())
-                              )
-                              .map((crypto) => (
-                                <div
-                                  key={crypto.symbol}
-                                  className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedGetCrypto(crypto);
-                                    setShowGetDropdown(false);
-                                    setGetSearchQuery('');
-                                  }}
-                                >
-                                  <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
-                                  <div>
-                                    <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol}</p>
-                                    <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
-                                  </div>
+                            {filteredGetCryptos.map((crypto) => (
+                              <div
+                                key={crypto.symbol}
+                                className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedGetCrypto(crypto);
+                                  setShowGetDropdown(false);
+                                  setGetSearchQuery('');
+                                }}
+                              >
+                                <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
+                                <div>
+                                  <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol.toUpperCase()}</p>
+                                  <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
                                 </div>
-                              ))}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -695,9 +738,9 @@ export default function Home() {
                       <input 
                         type="text"
                         value={getAmount}
-                        onChange={(e) => handleNumberInput(e.target.value, setGetAmount)}
+                        readOnly
                         placeholder="You Get" 
-                        className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium" 
+                        className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium cursor-not-allowed" 
                         style={{ 
                           fontFamily: 'Poppins, Inter, sans-serif',
                           color: '#3f5878'

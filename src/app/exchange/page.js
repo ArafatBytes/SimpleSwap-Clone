@@ -4,9 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
-import { cryptocurrencies } from '../../data/cryptocurrencies';
-import { cryptoCategories, getCoinsByCategory } from '../../data/cryptoCategories';
+import { cryptoCategories } from '../../data/cryptoCategories';
 import { toast } from 'react-toastify';
+import { getExchangeRate, getAllCurrencies } from '../../lib/api/simpleswap';
 
 export default function Exchange() {
   const router = useRouter();
@@ -15,8 +15,8 @@ export default function Exchange() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [sendAmount, setSendAmount] = useState('');
   const [getAmount, setGetAmount] = useState('');
-  const [selectedSendCrypto, setSelectedSendCrypto] = useState(cryptocurrencies[0]);
-  const [selectedGetCrypto, setSelectedGetCrypto] = useState(cryptocurrencies[1]);
+  const [selectedSendCrypto, setSelectedSendCrypto] = useState(null);
+  const [selectedGetCrypto, setSelectedGetCrypto] = useState(null);
   const [showSendDropdown, setShowSendDropdown] = useState(false);
   const [showGetDropdown, setShowGetDropdown] = useState(false);
   const [sendSearchQuery, setSendSearchQuery] = useState('');
@@ -28,6 +28,8 @@ export default function Exchange() {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [isButtonClick, setIsButtonClick] = useState(false);
+  const [cryptocurrencies, setCryptocurrencies] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -68,6 +70,59 @@ export default function Exchange() {
       setUserEmail(email || '');
     }
   }, []);
+
+  useEffect(() => {
+    const fetchCurrencies = async () => {
+      try {
+        setIsLoading(true);
+        const currencies = await getAllCurrencies();
+        if (currencies.length > 0) {
+          setCryptocurrencies(currencies);
+          
+          // Find BTC and ETH in the currencies list
+          const btc = currencies.find(c => c.symbol.toUpperCase() === 'BTC');
+          const eth = currencies.find(c => c.symbol.toUpperCase() === 'ETH');
+          
+          // Set BTC and ETH as default if found, otherwise use first two currencies
+          setSelectedSendCrypto(btc || currencies[0]);
+          setSelectedGetCrypto(eth || currencies[1]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch currencies:', error);
+        toast.error('Failed to load currencies. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCurrencies();
+  }, []);
+
+  // Filter cryptocurrencies based on category and search query
+  const getFilteredCryptos = (searchQuery, category = 'all') => {
+    let filteredList = cryptocurrencies;
+
+    // First filter by category
+    if (category !== 'all') {
+      filteredList = cryptocurrencies.filter(crypto => 
+        cryptoCategories[category].includes(crypto.symbol.toUpperCase())
+      );
+    }
+
+    // Then filter by search query if exists
+    if (searchQuery) {
+      return filteredList.filter(crypto => 
+        crypto.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        crypto.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    return filteredList;
+  };
+
+  // Get filtered lists for both dropdowns
+  const filteredSendCryptos = getFilteredCryptos(sendSearchQuery, selectedCategory);
+  const filteredGetCryptos = getFilteredCryptos(getSearchQuery, selectedCategory);
 
   const handleLogout = () => {
     toast.info('Logging out...', {
@@ -110,29 +165,54 @@ export default function Exchange() {
     setIsMobileMenuOpen(false);
   };
 
-  const handleNumberInput = (value, setter) => {
+  const handleNumberInput = async (value, setter) => {
+    // Allow empty string
     if (value === '') {
       setter('');
+      if (setter === setSendAmount) {
+        setGetAmount('');
+      }
       return;
     }
 
+    // Only allow numbers and one decimal point
     if (/^\d*\.?\d*$/.test(value)) {
       setter(value);
+      
+      // If updating send amount, calculate and update get amount
+      if (setter === setSendAmount && parseFloat(value) > 0) {
+        try {
+          const fromSymbol = selectedSendCrypto.symbol;
+          const toSymbol = selectedGetCrypto.symbol;
+          
+          console.log('Requesting exchange rate for:', {
+            fromSymbol,
+            toSymbol,
+            value
+          });
+          
+          const exchangeRate = await getExchangeRate(
+            fromSymbol,
+            toSymbol,
+            value
+          );
+          
+          console.log('Received exchange rate:', exchangeRate);
+          
+          // Format and set the exchange rate
+          if (exchangeRate) {
+            const formattedRate = parseFloat(exchangeRate).toFixed(8);
+            console.log('Setting formatted rate:', formattedRate);
+            setGetAmount(formattedRate);
+          } else {
+            setGetAmount('');
+          }
+        } catch (error) {
+          console.error('Exchange rate error:', error);
+          setGetAmount('');
+        }
+      }
     }
-  };
-
-  const getFilteredCryptos = () => {
-    let filteredList = selectedCategory === 'all' 
-      ? cryptocurrencies 
-      : cryptocurrencies.filter(crypto => getCoinsByCategory(selectedCategory).includes(crypto.symbol));
-
-    if (searchQuery) {
-      return filteredList.filter(crypto => 
-        crypto.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        crypto.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    return filteredList;
   };
 
   const handleNext = () => {
@@ -508,13 +588,15 @@ export default function Exchange() {
                         }}
                       >
                         <div className="flex items-center gap-2">
-                          <img 
-                            src={selectedSendCrypto.icon} 
-                            alt={selectedSendCrypto.name}
-                            className="w-6 h-6 rounded-full"
-                          />
+                          {selectedSendCrypto && (
+                            <img 
+                              src={selectedSendCrypto.icon} 
+                              alt={selectedSendCrypto.name}
+                              className="w-6 h-6 rounded-full"
+                            />
+                          )}
                           <span className="text-[12px] sm:text-[14px] font-medium text-white">
-                            {selectedSendCrypto.symbol}
+                            {selectedSendCrypto ? selectedSendCrypto.symbol.toUpperCase() : 'Select a cryptocurrency'}
                           </span>
                         </div>
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -533,126 +615,48 @@ export default function Exchange() {
                                 className="w-full px-4 py-2 bg-white/10 rounded-lg outline-none text-white placeholder-white/50 text-sm"
                               />
                             </div>
-                            <div className="px-4 pb-2 flex gap-2 overflow-x-auto">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('all');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'all'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                All Coins
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('popular');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'popular'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                Popular
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('gainers24h');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'gainers24h'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                24h Gainers
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('losers24h');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'losers24h'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                24h Losers
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('new');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'new'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                New
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('stablecoins');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'stablecoins'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                Stablecoins
-                              </button>
+                            <div className="flex flex-wrap gap-2 p-4 border-b border-[#1E3A8A]/20">
+                              {Object.entries(cryptoCategories).map(([key, _]) => (
+                                <button
+                                  key={key}
+                                  className={`px-3 py-1 rounded-full text-xs ${
+                                    selectedCategory === key
+                                      ? 'bg-blue-500 text-white'
+                                      : 'bg-white/10 text-white/70 hover:bg-white/20'
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCategory(key);
+                                  }}
+                                >
+                                  {key.charAt(0).toUpperCase() + key.slice(1)}
+                                </button>
+                              ))}
                             </div>
                             <div className="py-2">
-                              {cryptocurrencies
-                                .filter(crypto => {
-                                  const matchesSearch = 
-                                    crypto.name.toLowerCase().includes(sendSearchQuery.toLowerCase()) ||
-                                    crypto.symbol.toLowerCase().includes(sendSearchQuery.toLowerCase());
-                                  
-                                  const matchesCategory = 
-                                    selectedCategory === 'all' || 
-                                    (selectedCategory === 'popular' && cryptoCategories.popular.includes(crypto.symbol)) ||
-                                    (selectedCategory === 'gainers24h' && cryptoCategories.gainers24h.includes(crypto.symbol)) ||
-                                    (selectedCategory === 'losers24h' && cryptoCategories.losers24h.includes(crypto.symbol)) ||
-                                    (selectedCategory === 'new' && cryptoCategories.new.includes(crypto.symbol)) ||
-                                    (selectedCategory === 'stablecoins' && cryptoCategories.stablecoins.includes(crypto.symbol));
-                                  
-                                  return matchesSearch && matchesCategory;
-                                })
-                                .map((crypto) => (
-                                  <div
-                                    key={crypto.symbol}
-                                    className="flex items-center px-4 py-3 hover:bg-white/10 cursor-pointer"
-                                    onClick={() => {
-                                      setSelectedSendCrypto(crypto);
-                                      setShowSendDropdown(false);
-                                      setSendSearchQuery('');
-                                    }}
-                                  >
-                                    <Image
-                                      src={crypto.icon}
-                                      width={24}
-                                      height={24}
-                                      alt={crypto.name}
-                                      className="rounded-full"
-                                    />
-                                    <div className="ml-3">
-                                      <div className="text-white text-sm font-medium">{crypto.name}</div>
-                                      <div className="text-white/70 text-xs">{crypto.symbol}</div>
-                                    </div>
+                              {filteredSendCryptos.map((crypto) => (
+                                <div
+                                  key={crypto.symbol}
+                                  className="flex items-center px-4 py-3 hover:bg-white/10 cursor-pointer"
+                                  onClick={() => {
+                                    setSelectedSendCrypto(crypto);
+                                    setShowSendDropdown(false);
+                                    setSendSearchQuery('');
+                                  }}
+                                >
+                                  <Image
+                                    src={crypto.icon}
+                                    width={24}
+                                    height={24}
+                                    alt={crypto.name}
+                                    className="rounded-full"
+                                  />
+                                  <div className="ml-3">
+                                    <div className="text-white text-sm font-medium">{crypto.name}</div>
+                                    <div className="text-white/70 text-xs">{crypto.symbol.toUpperCase()}</div>
                                   </div>
-                                ))}
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )}
@@ -679,13 +683,15 @@ export default function Exchange() {
                         }}
                       >
                         <div className="flex items-center gap-2">
-                          <img 
-                            src={selectedGetCrypto.icon} 
-                            alt={selectedGetCrypto.name}
-                            className="w-6 h-6 rounded-full"
-                          />
+                          {selectedGetCrypto && (
+                            <img 
+                              src={selectedGetCrypto.icon} 
+                              alt={selectedGetCrypto.name}
+                              className="w-6 h-6 rounded-full"
+                            />
+                          )}
                           <span className="text-[12px] sm:text-[14px] font-medium text-white">
-                            {selectedGetCrypto.symbol}
+                            {selectedGetCrypto ? selectedGetCrypto.symbol.toUpperCase() : 'Select a cryptocurrency'}
                           </span>
                         </div>
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -704,126 +710,48 @@ export default function Exchange() {
                                 className="w-full px-4 py-2 bg-white/10 rounded-lg outline-none text-white placeholder-white/50 text-sm"
                               />
                             </div>
-                            <div className="px-4 pb-2 flex gap-2 overflow-x-auto">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('all');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'all'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                All Coins
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('popular');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'popular'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                Popular
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('gainers24h');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'gainers24h'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                24h Gainers
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('losers24h');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'losers24h'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                24h Losers
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('new');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'new'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                New
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory('stablecoins');
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                                  selectedCategory === 'stablecoins'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                }`}
-                              >
-                                Stablecoins
-                              </button>
+                            <div className="flex flex-wrap gap-2 p-4 border-b border-[#1E3A8A]/20">
+                              {Object.entries(cryptoCategories).map(([key, _]) => (
+                                <button
+                                  key={key}
+                                  className={`px-3 py-1 rounded-full text-xs ${
+                                    selectedCategory === key
+                                      ? 'bg-blue-500 text-white'
+                                      : 'bg-white/10 text-white/70 hover:bg-white/20'
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCategory(key);
+                                  }}
+                                >
+                                  {key.charAt(0).toUpperCase() + key.slice(1)}
+                                </button>
+                              ))}
                             </div>
                             <div className="py-2">
-                              {cryptocurrencies
-                                .filter(crypto => {
-                                  const matchesSearch = 
-                                    crypto.name.toLowerCase().includes(getSearchQuery.toLowerCase()) ||
-                                    crypto.symbol.toLowerCase().includes(getSearchQuery.toLowerCase());
-                                  
-                                  const matchesCategory = 
-                                    selectedCategory === 'all' || 
-                                    (selectedCategory === 'popular' && cryptoCategories.popular.includes(crypto.symbol)) ||
-                                    (selectedCategory === 'gainers24h' && cryptoCategories.gainers24h.includes(crypto.symbol)) ||
-                                    (selectedCategory === 'losers24h' && cryptoCategories.losers24h.includes(crypto.symbol)) ||
-                                    (selectedCategory === 'new' && cryptoCategories.new.includes(crypto.symbol)) ||
-                                    (selectedCategory === 'stablecoins' && cryptoCategories.stablecoins.includes(crypto.symbol));
-                                  
-                                  return matchesSearch && matchesCategory;
-                                })
-                                .map((crypto) => (
-                                  <div
-                                    key={crypto.symbol}
-                                    className="flex items-center px-4 py-3 hover:bg-white/10 cursor-pointer"
-                                    onClick={() => {
-                                      setSelectedGetCrypto(crypto);
-                                      setShowGetDropdown(false);
-                                      setGetSearchQuery('');
-                                    }}
-                                  >
-                                    <Image
-                                      src={crypto.icon}
-                                      width={24}
-                                      height={24}
-                                      alt={crypto.name}
-                                      className="rounded-full"
-                                    />
-                                    <div className="ml-3">
-                                      <div className="text-white text-sm font-medium">{crypto.name}</div>
-                                      <div className="text-white/70 text-xs">{crypto.symbol}</div>
-                                    </div>
+                              {filteredGetCryptos.map((crypto) => (
+                                <div
+                                  key={crypto.symbol}
+                                  className="flex items-center px-4 py-3 hover:bg-white/10 cursor-pointer"
+                                  onClick={() => {
+                                    setSelectedGetCrypto(crypto);
+                                    setShowGetDropdown(false);
+                                    setGetSearchQuery('');
+                                  }}
+                                >
+                                  <Image
+                                    src={crypto.icon}
+                                    width={24}
+                                    height={24}
+                                    alt={crypto.name}
+                                    className="rounded-full"
+                                  />
+                                  <div className="ml-3">
+                                    <div className="text-white text-sm font-medium">{crypto.name}</div>
+                                    <div className="text-white/70 text-xs">{crypto.symbol.toUpperCase()}</div>
                                   </div>
-                                ))}
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )}
@@ -832,9 +760,9 @@ export default function Exchange() {
                         <input 
                           type="text"
                           value={getAmount}
-                          onChange={(e) => handleNumberInput(e.target.value, setGetAmount)}
+                          readOnly
                           placeholder="You Get" 
-                          className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium text-white placeholder-white/50"
+                          className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium cursor-not-allowed text-white placeholder-white/50" 
                         />
                       </div>
                     </div>
@@ -845,7 +773,7 @@ export default function Exchange() {
                   <div className="space-y-4">
                     <div className="bg-white/5 backdrop-blur-md p-4 rounded-xl">
                       <label className="block text-sm text-white mb-2">
-                        Enter your {selectedGetCrypto.name} wallet address
+                        Enter your {selectedGetCrypto ? selectedGetCrypto.name : 'selected cryptocurrency'} wallet address
                       </label>
                       <input
                         type="text"
@@ -861,10 +789,10 @@ export default function Exchange() {
                 {step === 3 && (
                   <div className="space-y-4">
                     <div className="bg-white/5 backdrop-blur-md p-4 rounded-xl">
-                      <h3 className="text-lg text-white mb-4">Send your {selectedSendCrypto.name}</h3>
+                      <h3 className="text-lg text-white mb-4">Send your {selectedSendCrypto ? selectedSendCrypto.name : 'selected cryptocurrency'}</h3>
                       <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg">
                         <p className="text-sm text-white/80 mb-2">Send exactly:</p>
-                        <p className="text-lg font-medium text-white">{sendAmount} {selectedSendCrypto.symbol}</p>
+                        <p className="text-lg font-medium text-white">{sendAmount} {selectedSendCrypto ? selectedSendCrypto.symbol.toUpperCase() : ''}</p>
                         <p className="text-sm text-white/80 mt-4 mb-2">To address:</p>
                         <p className="text-sm font-medium text-white break-all">
                           0x1234567890abcdef1234567890abcdef12345678
@@ -883,7 +811,7 @@ export default function Exchange() {
                     </div>
                     <h3 className="text-lg font-medium text-white">Exchange in Progress</h3>
                     <p className="text-sm text-white/80">
-                      Your exchange has been initiated. You will receive your {selectedGetCrypto.symbol} soon.
+                      Your exchange has been initiated. You will receive your {selectedGetCrypto ? selectedGetCrypto.symbol.toUpperCase() : 'selected cryptocurrency'} soon.
                     </p>
                   </div>
                 )}
