@@ -5,22 +5,28 @@ import { writeFile, unlink } from 'fs/promises';
 import path from 'path';
 import jwt from 'jsonwebtoken';
 
-// Function to delete file if it exists
+// Function to convert file to base64
+async function fileToBase64(file) {
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    return buffer.toString('base64');
+}
+
+// Function to delete file if it exists (only in development)
 async function deleteFile(filePath) {
-    try {
-        // Convert URL path to filesystem path
-        const fullPath = path.join(process.cwd(), 'public', filePath);
-        await unlink(fullPath);
-    } catch (error) {
-        // Ignore errors if file doesn't exist
-        console.log('File deletion error (can be ignored if file not found):', error);
+    if (process.env.NODE_ENV === 'development') {
+        try {
+            const fullPath = path.join(process.cwd(), 'public', filePath);
+            await unlink(fullPath);
+        } catch (error) {
+            console.log('File deletion error (can be ignored if file not found):', error);
+        }
     }
 }
 
 // Function to get user from JWT token
 const getUserFromToken = async (request) => {
     try {
-        // Get the token from cookies
         const cookies = request.cookies;
         const token = cookies.get('token')?.value;
         
@@ -30,7 +36,7 @@ const getUserFromToken = async (request) => {
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         return {
-            _id: decoded.userId,  // Make sure we use the correct property name
+            _id: decoded.userId,
             email: decoded.email
         };
     } catch (error) {
@@ -39,34 +45,38 @@ const getUserFromToken = async (request) => {
     }
 };
 
-// Function to save file and return the file path
+// Function to save file and return the path or base64 data
 async function saveFile(file, userId, type) {
     if (!file) return null;
 
     try {
-        // Create uploads directory if it doesn't exist
-        const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'verifications');
-        try {
-            await writeFile(uploadsDir, '', { flag: 'wx' });
-        } catch (err) {
-            if (err.code !== 'EEXIST') throw err;
+        if (process.env.NODE_ENV === 'development') {
+            // Development: Save to filesystem
+            const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'verifications');
+            try {
+                await writeFile(uploadsDir, '', { flag: 'wx' });
+            } catch (err) {
+                if (err.code !== 'EEXIST') throw err;
+            }
+
+            const timestamp = Date.now();
+            const extension = file.name.split('.').pop();
+            const filename = `${userId}_${type}_${timestamp}.${extension}`;
+            const filepath = path.join(uploadsDir, filename);
+
+            const bytes = await file.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+            await writeFile(filepath, buffer);
+
+            return `/uploads/verifications/${filename}`;
+        } else {
+            // Production: Convert to base64
+            const base64Data = await fileToBase64(file);
+            const extension = file.name.split('.').pop();
+            return `data:image/${extension};base64,${base64Data}`;
         }
-
-        // Generate unique filename using userId
-        const timestamp = Date.now();
-        const extension = file.name.split('.').pop();
-        const filename = `${userId}_${type}_${timestamp}.${extension}`;
-        const filepath = path.join(uploadsDir, filename);
-
-        // Convert file to buffer and save
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        await writeFile(filepath, buffer);
-
-        // Return the public URL
-        return `/uploads/verifications/${filename}`;
     } catch (error) {
-        console.error('Error saving file:', error);
+        console.error('Error handling file:', error);
         return null;
     }
 }
@@ -75,8 +85,6 @@ export async function POST(request) {
     try {
         // Verify user authentication
         const user = await getUserFromToken(request);
-        console.log('User from token:', user); // Debug log
-
         if (!user || !user._id) {
             return NextResponse.json({ 
                 success: false, 
@@ -88,10 +96,7 @@ export async function POST(request) {
         await dbConnect();
 
         const formData = await request.formData();
-        
-        // Use the actual user ID from the token
         const userId = user._id;
-        console.log('Using userId:', userId); // Debug log
 
         // Check if a verification document already exists for this user
         const existingDoc = await Verification.findOne({ userId: userId });
@@ -108,9 +113,8 @@ export async function POST(request) {
             }, { status: 400 });
         }
 
-        // If updating, delete old files
+        // If updating and in development, delete old files
         if (existingDoc) {
-            // Delete previous images
             await deleteFile(existingDoc.frontImage);
             await deleteFile(existingDoc.backImage);
             await deleteFile(existingDoc.selfieImage);
@@ -138,7 +142,7 @@ export async function POST(request) {
             result = await Verification.findOneAndUpdate(
                 { userId: userId },
                 verificationData,
-                { new: true } // Return the updated document
+                { new: true }
             );
         } else {
             // Create new document
