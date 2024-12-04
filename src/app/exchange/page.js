@@ -31,6 +31,7 @@ export default function Exchange() {
   const [cryptocurrencies, setCryptocurrencies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [minAmountError, setMinAmountError] = useState(null);
+  const [isVerified, setIsVerified] = useState(false);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -64,15 +65,22 @@ export default function Exchange() {
   }, [step]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const email = localStorage.getItem('userEmail');
-    if (token) {
-      setIsAuthenticated(true);
-      setUserEmail(email || '');
-    }
-  }, []);
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        setIsAuthenticated(data.isAuthenticated);
+        setIsVerified(data.user?.isVerified || false);
+        if (data.isAuthenticated) {
+          setUserEmail(data.user.email || '');
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setIsAuthenticated(false);
+        setIsVerified(false);
+      }
+    };
 
-  useEffect(() => {
     const fetchCurrencies = async () => {
       try {
         setIsLoading(true);
@@ -96,6 +104,7 @@ export default function Exchange() {
       }
     };
 
+    checkAuth();
     fetchCurrencies();
   }, []);
 
@@ -389,7 +398,12 @@ export default function Exchange() {
                             </div>
                             <Link
                               href="/verification"
-                              className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
+                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${isAuthenticated && isVerified ? 'cursor-not-allowed opacity-50' : ''}`}
+                              onClick={(e) => {
+                                if (isAuthenticated && isVerified) {
+                                  e.preventDefault();
+                                }
+                              }}
                             >
                               <svg
                                 className="w-4 h-4"
@@ -405,6 +419,21 @@ export default function Exchange() {
                                 />
                               </svg>
                               ID Verification
+                              {isAuthenticated && isVerified && (
+                                <div className="ml-2 p-1 rounded-full bg-green-500/20 backdrop-blur-sm">
+                                  <svg 
+                                    className="w-4 h-4 text-green-500" 
+                                    fill="currentColor" 
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path 
+                                      fillRule="evenodd" 
+                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
+                                      clipRule="evenodd" 
+                                    />
+                                  </svg>
+                                </div>
+                              )}
                             </Link>
                             <button
                               onClick={handleLogout}
@@ -549,7 +578,12 @@ export default function Exchange() {
                             </div>
                             <Link
                               href="/verification"
-                              className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
+                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${isAuthenticated && isVerified ? 'cursor-not-allowed opacity-50' : ''}`}
+                              onClick={(e) => {
+                                if (isAuthenticated && isVerified) {
+                                  e.preventDefault();
+                                }
+                              }}
                             >
                               <svg
                                 className="w-4 h-4"
@@ -565,6 +599,21 @@ export default function Exchange() {
                                 />
                               </svg>
                               ID Verification
+                              {isAuthenticated && isVerified && (
+                                <div className="ml-2 p-1 rounded-full bg-green-500/20 backdrop-blur-sm">
+                                  <svg 
+                                    className="w-4 h-4 text-green-500" 
+                                    fill="currentColor" 
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path 
+                                      fillRule="evenodd" 
+                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
+                                      clipRule="evenodd" 
+                                    />
+                                  </svg>
+                                </div>
+                              )}
                             </Link>
                             <button
                               onClick={handleLogout}
@@ -637,13 +686,18 @@ export default function Exchange() {
                       >
                         <div className="flex items-center gap-2">
                           {selectedSendCrypto && (
-                            <Image 
-                              src={selectedSendCrypto.icon} 
-                              alt={selectedSendCrypto.name}
-                              width={24}
-                              height={24}
-                              className="w-6 h-6 rounded-full"
-                            />
+                            <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10">
+                              <Image 
+                                src={selectedSendCrypto.icon}
+                                alt={selectedSendCrypto.name}
+                                width={24}
+                                height={24}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = '/images/default-crypto.png';
+                                }}
+                              />
+                            </div>
                           )}
                           <span className="text-[12px] sm:text-[14px] font-medium text-white">
                             {selectedSendCrypto ? selectedSendCrypto.symbol.toUpperCase() : 'Select a cryptocurrency'}
@@ -694,13 +748,18 @@ export default function Exchange() {
                                     setSendSearchQuery('');
                                   }}
                                 >
-                                  <Image
-                                    src={crypto.icon}
-                                    width={24}
-                                    height={24}
-                                    alt={crypto.name}
-                                    className="rounded-full"
-                                  />
+                                  <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10">
+                                    <Image
+                                      src={crypto.icon}
+                                      width={24}
+                                      height={24}
+                                      alt={crypto.name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.src = '/images/default-crypto.png';
+                                      }}
+                                    />
+                                  </div>
                                   <div className="ml-3">
                                     <div className="text-white text-sm font-medium">{crypto.name}</div>
                                     <div className="text-white/70 text-xs">{crypto.symbol.toUpperCase()}</div>
@@ -739,13 +798,18 @@ export default function Exchange() {
                       >
                         <div className="flex items-center gap-2">
                           {selectedGetCrypto && (
-                            <Image 
-                              src={selectedGetCrypto.icon} 
-                              alt={selectedGetCrypto.name}
-                              width={24}
-                              height={24}
-                              className="w-6 h-6 rounded-full"
-                            />
+                            <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10">
+                              <Image 
+                                src={selectedGetCrypto.icon}
+                                alt={selectedGetCrypto.name}
+                                width={24}
+                                height={24}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = '/images/default-crypto.png';
+                                }}
+                              />
+                            </div>
                           )}
                           <span className="text-[12px] sm:text-[14px] font-medium text-white">
                             {selectedGetCrypto ? selectedGetCrypto.symbol.toUpperCase() : 'Select a cryptocurrency'}
@@ -796,13 +860,18 @@ export default function Exchange() {
                                     setGetSearchQuery('');
                                   }}
                                 >
-                                  <Image
-                                    src={crypto.icon}
-                                    width={24}
-                                    height={24}
-                                    alt={crypto.name}
-                                    className="rounded-full"
-                                  />
+                                  <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10">
+                                    <Image
+                                      src={crypto.icon}
+                                      width={24}
+                                      height={24}
+                                      alt={crypto.name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.src = '/images/default-crypto.png';
+                                      }}
+                                    />
+                                  </div>
                                   <div className="ml-3">
                                     <div className="text-white text-sm font-medium">{crypto.name}</div>
                                     <div className="text-white/70 text-xs">{crypto.symbol.toUpperCase()}</div>

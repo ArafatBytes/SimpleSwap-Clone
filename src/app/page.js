@@ -29,22 +29,26 @@ export default function Home() {
   const [cryptocurrencies, setCryptocurrencies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [minAmountError, setMinAmountError] = useState(null);
+  const [isVerified, setIsVerified] = useState(false);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
   const accountDropdownRef = useRef(null);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem('token');
-    const email = localStorage.getItem('userEmail');
-    if (token) {
-      setIsAuthenticated(true);
-      setUserEmail(email || '');
-    }
-  }, []);
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        setIsAuthenticated(data.isAuthenticated);
+        setIsVerified(data.user?.isVerified || false);
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setIsAuthenticated(false);
+        setIsVerified(false);
+      }
+    };
 
-  useEffect(() => {
     const fetchCurrencies = async () => {
       try {
         setIsLoading(true);
@@ -68,10 +72,21 @@ export default function Home() {
       }
     };
 
+    checkAuth();
     fetchCurrencies();
   }, []);
 
-  const handleLogout = () => {
+  useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    const email = localStorage.getItem('userEmail');
+    if (token) {
+      setIsAuthenticated(true);
+      setUserEmail(email || '');
+    }
+  }, []);
+
+  const handleLogout = async () => {
     toast.info('Logging out...', {
       position: "top-right",
       autoClose: 2000,
@@ -90,11 +105,17 @@ export default function Home() {
       }
     });
     
-    setTimeout(() => {
+    try {
+      // Clear the HTTP-only cookie by calling the logout endpoint
+      await fetch('/api/auth/logout', { method: 'POST' });
+      // Clear local storage
       localStorage.removeItem('token');
       setIsAuthenticated(false);
       window.location.reload();
-    }, 2000);
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Error logging out');
+    }
   };
 
   // Close dropdowns when clicking outside
@@ -368,7 +389,12 @@ export default function Home() {
                             </div>
                             <Link
                               href="/verification"
-                              className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
+                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${isAuthenticated && isVerified ? 'cursor-not-allowed opacity-50' : ''}`}
+                              onClick={(e) => {
+                                if (isAuthenticated && isVerified) {
+                                  e.preventDefault();
+                                }
+                              }}
                             >
                               <svg
                                 className="w-4 h-4"
@@ -384,6 +410,21 @@ export default function Home() {
                                 />
                               </svg>
                               ID Verification
+                              {isAuthenticated && isVerified && (
+                                <div className="ml-2 p-1 rounded-full bg-green-500/20 backdrop-blur-sm">
+                                  <svg 
+                                    className="w-4 h-4 text-green-500" 
+                                    fill="currentColor" 
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path 
+                                      fillRule="evenodd" 
+                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
+                                      clipRule="evenodd" 
+                                    />
+                                  </svg>
+                                </div>
+                              )}
                             </Link>
                             <button
                               onClick={handleLogout}
@@ -528,7 +569,12 @@ export default function Home() {
                             </div>
                             <Link
                               href="/verification"
-                              className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
+                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${isAuthenticated && isVerified ? 'cursor-not-allowed opacity-50' : ''}`}
+                              onClick={(e) => {
+                                if (isAuthenticated && isVerified) {
+                                  e.preventDefault();
+                                }
+                              }}
                             >
                               <svg
                                 className="w-4 h-4"
@@ -544,6 +590,21 @@ export default function Home() {
                                 />
                               </svg>
                               ID Verification
+                              {isAuthenticated && isVerified && (
+                                <div className="ml-2 p-1 rounded-full bg-green-500/20 backdrop-blur-sm">
+                                  <svg 
+                                    className="w-4 h-4 text-green-500" 
+                                    fill="currentColor" 
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path 
+                                      fillRule="evenodd" 
+                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
+                                      clipRule="evenodd" 
+                                    />
+                                  </svg>
+                                </div>
+                              )}
                             </Link>
                             <button
                               onClick={handleLogout}

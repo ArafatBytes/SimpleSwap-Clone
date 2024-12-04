@@ -132,7 +132,7 @@ export async function POST(request) {
             frontImage: frontImagePath,
             backImage: backImagePath,
             selfieImage: selfieImagePath,
-            verificationStatus: 'Unverified',
+            verificationStatus: 'Unverified', // Always set to Unverified when submitting/resubmitting
             updatedAt: new Date()
         };
 
