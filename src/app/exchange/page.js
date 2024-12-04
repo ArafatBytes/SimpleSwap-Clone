@@ -134,7 +134,7 @@ export default function Exchange() {
   const filteredSendCryptos = getFilteredCryptos(sendSearchQuery, selectedCategory);
   const filteredGetCryptos = getFilteredCryptos(getSearchQuery, selectedCategory);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     toast.info('Logging out...', {
       position: "top-right",
       autoClose: 2000,
@@ -153,11 +153,18 @@ export default function Exchange() {
       }
     });
     
-    setTimeout(() => {
+    try {
+      // Clear the HTTP-only cookie by calling the logout endpoint
+      await fetch('/api/auth/logout', { method: 'POST' });
+      // Clear local storage
       localStorage.removeItem('token');
+      localStorage.removeItem('userEmail');
       setIsAuthenticated(false);
       window.location.reload();
-    }, 2000);
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Error logging out');
+    }
   };
 
   const scrollToSection = (sectionId) => {
