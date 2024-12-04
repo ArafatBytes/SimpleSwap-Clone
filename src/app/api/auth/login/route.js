@@ -29,21 +29,32 @@ export async function POST(request) {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
 
-    // Return success response with token
-    return NextResponse.json({
+    // Create response with token in cookie
+    const response = NextResponse.json({
       message: 'Login successful',
-      token
+      user: { email: user.email }
     });
 
+    // Set token as HTTP-only cookie
+    response.cookies.set({
+      name: 'token',
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 // 30 days
+    });
+
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to login' },
       { status: 500 }
     );
   }
