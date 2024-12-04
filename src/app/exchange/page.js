@@ -30,6 +30,7 @@ export default function Exchange() {
   const [isButtonClick, setIsButtonClick] = useState(false);
   const [cryptocurrencies, setCryptocurrencies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [minAmountError, setMinAmountError] = useState(null);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -171,6 +172,7 @@ export default function Exchange() {
       setter('');
       if (setter === setSendAmount) {
         setGetAmount('');
+        setMinAmountError(null);
       }
       return;
     }
@@ -191,25 +193,33 @@ export default function Exchange() {
             value
           });
           
-          const exchangeRate = await getExchangeRate(
+          const result = await getExchangeRate(
             fromSymbol,
             toSymbol,
             value
           );
           
-          console.log('Received exchange rate:', exchangeRate);
+          console.log('Received exchange rate:', result);
           
-          // Format and set the exchange rate
-          if (exchangeRate) {
-            const formattedRate = parseFloat(exchangeRate).toFixed(8);
+          if (result.error === 'MIN_AMOUNT' && result.minAmount) {
+            setGetAmount('');
+            setMinAmountError({
+              amount: result.minAmount,
+              currency: result.currency
+            });
+          } else if (result.rate) {
+            const formattedRate = parseFloat(result.rate).toFixed(8);
             console.log('Setting formatted rate:', formattedRate);
             setGetAmount(formattedRate);
+            setMinAmountError(null);
           } else {
             setGetAmount('');
+            setMinAmountError(null);
           }
         } catch (error) {
           console.error('Exchange rate error:', error);
           setGetAmount('');
+          setMinAmountError(null);
         }
       }
     }
@@ -589,9 +599,11 @@ export default function Exchange() {
                       >
                         <div className="flex items-center gap-2">
                           {selectedSendCrypto && (
-                            <img 
+                            <Image 
                               src={selectedSendCrypto.icon} 
                               alt={selectedSendCrypto.name}
+                              width={24}
+                              height={24}
                               className="w-6 h-6 rounded-full"
                             />
                           )}
@@ -661,7 +673,7 @@ export default function Exchange() {
                           </div>
                         )}
                       </div>
-                      <div className="flex-1 bg-white/5 backdrop-blur-md flex items-center px-4 sm:px-6">
+                      <div className="flex-1 bg-white/5 backdrop-blur-md flex items-center px-4 sm:px-6 relative">
                         <input 
                           type="text"
                           value={sendAmount}
@@ -669,6 +681,11 @@ export default function Exchange() {
                           placeholder="You Send" 
                           className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium text-white placeholder-white/50"
                         />
+                        {minAmountError && (
+                          <div className="absolute left-0 -bottom-7 text-xs text-yellow-400 bg-white/5 px-2 py-1 rounded-md border border-yellow-400/20">
+                            Min amount: {minAmountError.amount} {minAmountError.currency}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -684,9 +701,11 @@ export default function Exchange() {
                       >
                         <div className="flex items-center gap-2">
                           {selectedGetCrypto && (
-                            <img 
+                            <Image 
                               src={selectedGetCrypto.icon} 
                               alt={selectedGetCrypto.name}
+                              width={24}
+                              height={24}
                               className="w-6 h-6 rounded-full"
                             />
                           )}

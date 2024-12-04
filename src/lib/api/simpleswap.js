@@ -51,14 +51,13 @@ export const getExchangeRate = async (fromCurrency, toCurrency, amount) => {
   try {
     if (!fromCurrency || !toCurrency || !amount || !API_KEY) {
       console.error('Missing required parameters or API key');
-      return '';
+      return { rate: '', error: null };
     }
 
     // Get network-specific symbols
     const currency_from = CURRENCY_MAPPING[fromCurrency.toUpperCase()] || fromCurrency.toUpperCase();
     const currency_to = CURRENCY_MAPPING[toCurrency.toUpperCase()] || toCurrency.toUpperCase();
     
-    // Get exchange rate using the correct endpoint format with query parameters
     const url = `${BASE_URL}/get_estimated?api_key=${API_KEY}&fixed=false&currency_from=${currency_from}&currency_to=${currency_to}&amount=${amount}`;
     
     console.log('Requesting exchange rate:', {
@@ -78,19 +77,36 @@ export const getExchangeRate = async (fromCurrency, toCurrency, amount) => {
     });
 
     if (response.status === 401) {
-      throw new Error('Invalid API key');
+      return { rate: '', error: 'Invalid API key' };
     }
 
-    if (!response.ok || data.error) {
-      const message = data.message || data.error || 'Failed to get exchange rate';
-      throw new Error(message);
+    // Check for the specific error format we're seeing
+    if (data.error === 'Unprocessable Entity' && data.description && data.description.includes('Amount does not fall within the range')) {
+      // Extract min amount from the description using regex
+      const minMatch = data.description.match(/Min: ([0-9.]+)/);
+      const minAmount = minMatch ? minMatch[1] : null;
+      
+      console.log('Extracted min amount:', minAmount);
+      
+      return {
+        rate: '',
+        error: 'MIN_AMOUNT',
+        minAmount: minAmount,
+        currency: currency_from
+      };
     }
 
-    // The API response is the estimated amount directly
-    console.log('Raw API response:', data);
-    return data ? data.toString() : '';
+    if (data.error) {
+      return { rate: '', error: data.error };
+    }
+
+    if (!response.ok) {
+      return { rate: '', error: 'Failed to get exchange rate' };
+    }
+
+    return { rate: data.toString(), error: null };
   } catch (error) {
     console.error('Exchange rate error:', error);
-    return '';
+    return { rate: '', error: error.message };
   }
 };

@@ -28,6 +28,7 @@ export default function Home() {
   const [isButtonClick, setIsButtonClick] = useState(false);
   const [cryptocurrencies, setCryptocurrencies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [minAmountError, setMinAmountError] = useState(null);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -136,6 +137,7 @@ export default function Home() {
       setter('');
       if (setter === setSendAmount) {
         setGetAmount('');
+        setMinAmountError(null);
       }
       return;
     }
@@ -156,25 +158,33 @@ export default function Home() {
             value
           });
           
-          const exchangeRate = await getExchangeRate(
+          const result = await getExchangeRate(
             fromSymbol,
             toSymbol,
             value
           );
           
-          console.log('Received exchange rate:', exchangeRate);
+          console.log('Received exchange rate:', result);
           
-          // Format and set the exchange rate
-          if (exchangeRate) {
-            const formattedRate = parseFloat(exchangeRate).toFixed(8);
+          if (result.error === 'MIN_AMOUNT' && result.minAmount) {
+            setGetAmount('');
+            setMinAmountError({
+              amount: result.minAmount,
+              currency: result.currency
+            });
+          } else if (result.rate) {
+            const formattedRate = parseFloat(result.rate).toFixed(8);
             console.log('Setting formatted rate:', formattedRate);
             setGetAmount(formattedRate);
+            setMinAmountError(null);
           } else {
             setGetAmount('');
+            setMinAmountError(null);
           }
         } catch (error) {
           console.error('Exchange rate error:', error);
           setGetAmount('');
+          setMinAmountError(null);
         }
       }
     }
@@ -641,7 +651,7 @@ export default function Home() {
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 bg-[#edf1f7] ml-[8px] flex items-center px-4 sm:px-6">
+                    <div className="flex-1 bg-[#edf1f7] ml-[8px] flex items-center px-4 sm:px-6 relative">
                       <input 
                         type="text"
                         value={sendAmount}
@@ -653,6 +663,11 @@ export default function Home() {
                           color: '#3f5878'
                         }}
                       />
+                      {minAmountError && (
+                        <div className="absolute left-0 -bottom-7 text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded-md border border-yellow-200">
+                          Min amount: {minAmountError.amount} {minAmountError.currency}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="w-full rounded-xl h-[70px] flex overflow-visible">
