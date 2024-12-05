@@ -11,6 +11,7 @@ export default function AdminPanel() {
     const [activeTab, setActiveTab] = useState('verifications');
     const [verifications, setVerifications] = useState([]);
     const [exchanges, setExchanges] = useState([]);
+    const [lockedExchanges, setLockedExchanges] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -34,8 +35,19 @@ export default function AdminPanel() {
                 } else {
                     throw new Error(data.message);
                 }
+            } else if (activeTab === 'locked') {
+                // Fetch only locked exchanges
+                const res = await fetch(`/api/admin/exchanges?page=${currentPage}&status=locked&isLocked=true`);
+                const data = await res.json();
+                if (data.success) {
+                    setLockedExchanges(data.data.exchanges);
+                    setTotalPages(data.data.pagination.pages);
+                } else {
+                    throw new Error(data.message);
+                }
             } else {
-                const res = await fetch(`/api/admin/exchanges?page=${currentPage}`);
+                // Fetch regular (non-locked) exchanges
+                const res = await fetch(`/api/admin/exchanges?page=${currentPage}&isLocked=false`);
                 const data = await res.json();
                 if (data.success) {
                     setExchanges(data.data.exchanges);
@@ -80,6 +92,28 @@ export default function AdminPanel() {
     const handleImageClick = (imageUrl) => {
         setSelectedImage(imageUrl);
         setShowImageModal(true);
+    };
+
+    const handleCompleteLockedExchange = async (exchangeId) => {
+        try {
+            const res = await fetch('/api/admin/exchanges/complete-locked', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ exchangeId }),
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                toast.success('Exchange marked as completed');
+                fetchData(); // Refresh the data
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to complete exchange');
+        }
     };
 
     return (
@@ -149,6 +183,19 @@ export default function AdminPanel() {
                             }`}
                         >
                             Exchanges
+                        </button>
+                        <button
+                            onClick={() => {
+                                setActiveTab('locked');
+                                setCurrentPage(1);
+                            }}
+                            className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                activeTab === 'locked'
+                                    ? 'bg-[#0f75fc] text-white shadow-lg'
+                                    : 'text-white/70 hover:text-white hover:bg-white/5'
+                            }`}
+                        >
+                            Locked Exchanges
                         </button>
                     </div>
                 </div>
@@ -232,26 +279,171 @@ export default function AdminPanel() {
                             </div>
                         ))}
                     </div>
-                ) : (
-                    <div className="space-y-4">
+                ) : activeTab === 'exchanges' ? (
+                    <div className="space-y-6">
                         {exchanges.map((exchange) => (
                             <div
-                                key={exchange._id}
-                                className="bg-white/10 rounded-lg p-6"
+                                key={exchange.id}
+                                className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/10"
                             >
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p>From: {exchange.fromCurrency}</p>
-                                        <p>Amount: {exchange.fromAmount}</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Exchange Details */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-semibold text-white/90">Exchange Information</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <p className="text-white/60">From Currency:</p>
+                                                <p className="font-medium">{exchange.currency_from?.toUpperCase()}</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-white/60">To Currency:</p>
+                                                <p className="font-medium">{exchange.currency_to?.toUpperCase()}</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-white/60">Amount From:</p>
+                                                <p className="font-medium">{exchange.amount_from}</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-white/60">Expected Amount:</p>
+                                                <p className="font-medium">{exchange.expected_amount || 'N/A'}</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p>To: {exchange.toCurrency}</p>
-                                        <p>Amount: {exchange.toAmount}</p>
+
+                                    {/* Address Details */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-semibold text-white/90">Address Details</h3>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <p className="text-white/60">From Address:</p>
+                                                <p className="font-medium break-all">{exchange.address_from || 'Pending...'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-white/60">To Address:</p>
+                                                <p className="font-medium break-all">{exchange.address_to}</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="mt-4">
-                                    <p>Status: {exchange.status}</p>
-                                    <p>Created: {new Date(exchange.createdAt).toLocaleString()}</p>
+
+                                {/* Status and Additional Info */}
+                                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <p className="text-white/60">Status:</p>
+                                        <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mt-1
+                                            ${exchange.status === 'finished' ? 'bg-green-500/20 text-green-300' :
+                                              exchange.status === 'waiting' ? 'bg-yellow-500/20 text-yellow-300' :
+                                              exchange.status === 'failed' ? 'bg-red-500/20 text-red-300' :
+                                              'bg-blue-500/20 text-blue-300'}`}>
+                                            {exchange.status?.charAt(0).toUpperCase() + exchange.status?.slice(1)}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p className="text-white/60">Exchange Type:</p>
+                                        <p className="font-medium capitalize">{exchange.type}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-white/60">Created At:</p>
+                                        <p className="font-medium">
+                                            {new Date(exchange.createdAt).toLocaleString()}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* User Information */}
+                                <div className="mt-6 pt-6 border-t border-white/10">
+                                    <h3 className="text-lg font-semibold text-white/90 mb-4">User Information</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <p className="text-white/60">Authentication:</p>
+                                            <p className="font-medium">
+                                                {exchange.isLoggedIn ? 'Authenticated User' : 'Anonymous User'}
+                                            </p>
+                                        </div>
+                                        {exchange.isLoggedIn && (
+                                            <div>
+                                                <p className="text-white/60">User ID:</p>
+                                                <p className="font-medium break-all">{exchange.userId}</p>
+                                            </div>
+                                        )}
+                                        <div>
+                                            <p className="text-white/60">Exchange ID:</p>
+                                            <p className="font-medium break-all">{exchange.id}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {lockedExchanges.map((exchange) => (
+                            <div
+                                key={exchange.id}
+                                className="bg-red-500/10 backdrop-blur-sm rounded-lg p-6 border border-red-500/20"
+                            >
+                                {/* User Information */}
+                                <div className="mb-4 pb-4 border-b border-white/10">
+                                    <h3 className="text-lg font-semibold text-white/90">User Information</h3>
+                                    <p className="text-white/60">
+                                        User ID: <span className="font-medium text-white/90">{exchange.userId || 'Anonymous'}</span>
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Current Exchange Details */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-semibold text-white/90">Current Exchange (USDT)</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <p className="text-white/60">From Currency:</p>
+                                                <p className="font-medium">{exchange.currency_from?.toUpperCase()}</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-white/60">To Currency:</p>
+                                                <p className="font-medium">USDT</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-white/60">Amount From:</p>
+                                                <p className="font-medium">{exchange.amount_from}</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-white/60">Expected USDT:</p>
+                                                <p className="font-medium">{exchange.expected_amount}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Original Exchange Details */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-semibold text-white/90">Original Request</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <p className="text-white/60">To Currency:</p>
+                                                <p className="font-medium">{exchange.originalCurrencyTo?.toUpperCase()}</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-white/60">To Address:</p>
+                                                <p className="font-medium break-all">{exchange.originalAddressTo}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Status and Actions */}
+                                <div className="mt-6 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-white/60">Last Verification Check:</p>
+                                        <p className="font-medium">
+                                            {new Date(exchange.verificationCheckedAt).toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleCompleteLockedExchange(exchange.id)}
+                                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                                    >
+                                        Mark as Completed
+                                    </button>
                                 </div>
                             </div>
                         ))}

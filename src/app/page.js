@@ -42,10 +42,16 @@ export default function Home() {
         const data = await response.json();
         setIsAuthenticated(data.isAuthenticated);
         setIsVerified(data.user?.isVerified || false);
+        if (data.isAuthenticated && data.user?.email) {
+          setUserEmail(data.user.email);
+          localStorage.setItem('userEmail', data.user.email);
+        }
       } catch (error) {
         console.error('Auth check error:', error);
         setIsAuthenticated(false);
         setIsVerified(false);
+        setUserEmail('');
+        localStorage.removeItem('userEmail');
       }
     };
 
@@ -80,13 +86,20 @@ export default function Home() {
     // Check if user is authenticated
     const token = localStorage.getItem('token');
     const email = localStorage.getItem('userEmail');
-    if (token) {
+    if (token && email) {
       setIsAuthenticated(true);
-      setUserEmail(email || '');
+      setUserEmail(email);
+    } else {
+      setIsAuthenticated(false);
+      setUserEmail('');
     }
   }, []);
 
   const handleLogout = async () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+    setIsAuthenticated(false);
+    setUserEmail('');
     toast.info('Logging out...', {
       position: "top-right",
       autoClose: 2000,
@@ -108,9 +121,6 @@ export default function Home() {
     try {
       // Clear the HTTP-only cookie by calling the logout endpoint
       await fetch('/api/auth/logout', { method: 'POST' });
-      // Clear local storage
-      localStorage.removeItem('token');
-      setIsAuthenticated(false);
       window.location.reload();
     } catch (error) {
       console.error('Logout error:', error);

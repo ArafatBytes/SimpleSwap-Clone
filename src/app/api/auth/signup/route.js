@@ -31,11 +31,24 @@ export async function POST(request) {
       { expiresIn: '30d' }
     );
 
-    // Return success response with token
-    return NextResponse.json({
+    // Create the response
+    const response = NextResponse.json({
       message: 'User created successfully',
-      token
+      token,
+      email: user.email
     }, { status: 201 });
+
+    // Set the token as an HTTP-only cookie
+    response.cookies.set({
+      name: 'token',
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 // 30 days
+    });
+
+    return response;
 
   } catch (error) {
     console.error('Signup error:', error);

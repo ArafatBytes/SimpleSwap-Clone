@@ -38,8 +38,8 @@ const CURRENCY_MAPPING = {
   'USDT': 'USDTERC20', // Use ERC20 version of USDT
   'USDC': 'USDCERC20', // Use ERC20 version of USDC
   'DAI': 'DAIERC20',   // Use ERC20 version of DAI
-  'BTC': 'BTC',        // Bitcoin stays as is
-  'ETH': 'ETH',        // Ethereum stays as is
+  'BTC': 'btc',        // Bitcoin (case sensitive)
+  'ETH': 'eth',        // Ethereum (case sensitive)
   'BNB': 'BNBBSC',     // Use BSC version of BNB
   'MATIC': 'MATIC',    // Polygon MATIC
   'SOL': 'SOL',        // Solana

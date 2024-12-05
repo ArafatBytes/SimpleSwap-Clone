@@ -20,9 +20,36 @@ export default function SignUp() {
 
   useEffect(() => {
     // Check if user is authenticated
-    const token = localStorage.getItem('token');
-    setIsAuthenticated(!!token);
-  }, []);
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          // Verify token with the server
+          const response = await fetch('/api/auth/verify', {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            setIsAuthenticated(true);
+            router.push('/'); // Redirect to home if already authenticated
+          } else {
+            localStorage.removeItem('token');
+            setIsAuthenticated(false);
+          }
+        } catch (error) {
+          console.error('Auth check error:', error);
+          localStorage.removeItem('token');
+          setIsAuthenticated(false);
+        }
+      } else {
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -62,11 +89,16 @@ export default function SignUp() {
 
       // Store token in localStorage
       localStorage.setItem('token', data.token);
+      localStorage.setItem('userEmail', data.email);
       
-      // Redirect to dashboard or home
+      // Set authentication state
+      setIsAuthenticated(true);
+      
+      // Redirect to home page
       router.push('/');
     } catch (err) {
       setError(err.message);
+      setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }

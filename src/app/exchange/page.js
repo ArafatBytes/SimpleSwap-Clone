@@ -24,14 +24,15 @@ export default function Exchange() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [step, setStep] = useState(1);
-  const [walletAddress, setWalletAddress] = useState('');
-  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
-  const [isButtonClick, setIsButtonClick] = useState(false);
-  const [cryptocurrencies, setCryptocurrencies] = useState([]);
+  const [recipientAddress, setRecipientAddress] = useState('');
+  const [extraId, setExtraId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [minAmountError, setMinAmountError] = useState(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [isButtonClick, setIsButtonClick] = useState(false);
+  const [cryptocurrencies, setCryptocurrencies] = useState([]);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -65,19 +66,33 @@ export default function Exchange() {
   }, [step]);
 
   useEffect(() => {
+    const checkApiKey = () => {
+      const apiKey = process.env.NEXT_PUBLIC_SIMPLESWAP_API_KEY;
+      console.log('SimpleSwap API Key present:', !!apiKey);
+      if (!apiKey) {
+        console.error('SimpleSwap API key is not configured');
+      }
+    };
+    checkApiKey();
+  }, []);
+
+  useEffect(() => {
     const checkAuth = async () => {
       try {
         const response = await fetch('/api/auth/check');
         const data = await response.json();
         setIsAuthenticated(data.isAuthenticated);
         setIsVerified(data.user?.isVerified || false);
-        if (data.isAuthenticated) {
-          setUserEmail(data.user.email || '');
+        if (data.isAuthenticated && data.user?.email) {
+          setUserEmail(data.user.email);
+          localStorage.setItem('userEmail', data.user.email);
         }
       } catch (error) {
         console.error('Auth check error:', error);
         setIsAuthenticated(false);
         setIsVerified(false);
+        setUserEmail('');
+        localStorage.removeItem('userEmail');
       }
     };
 
@@ -108,6 +123,19 @@ export default function Exchange() {
     fetchCurrencies();
   }, []);
 
+  useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    const email = localStorage.getItem('userEmail');
+    if (token && email) {
+      setIsAuthenticated(true);
+      setUserEmail(email);
+    } else {
+      setIsAuthenticated(false);
+      setUserEmail('');
+    }
+  }, []);
+
   // Filter cryptocurrencies based on category and search query
   const getFilteredCryptos = (searchQuery, category = 'all') => {
     let filteredList = cryptocurrencies;
@@ -135,6 +163,10 @@ export default function Exchange() {
   const filteredGetCryptos = getFilteredCryptos(getSearchQuery, selectedCategory);
 
   const handleLogout = async () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+    setIsAuthenticated(false);
+    setUserEmail('');
     toast.info('Logging out...', {
       position: "top-right",
       autoClose: 2000,
@@ -147,23 +179,16 @@ export default function Exchange() {
         background: 'rgba(23, 63, 136, 0.6)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
-        color: 'white'
-      }
+        color: '#fff',
+      },
     });
-    
+
     try {
-      // Clear the HTTP-only cookie by calling the logout endpoint
       await fetch('/api/auth/logout', { method: 'POST' });
-      // Clear local storage
-      localStorage.removeItem('token');
-      localStorage.removeItem('userEmail');
-      setIsAuthenticated(false);
       window.location.reload();
     } catch (error) {
       console.error('Logout error:', error);
-      toast.error('Error logging out');
+      toast.error('Failed to logout. Please try again.');
     }
   };
 
@@ -244,7 +269,7 @@ export default function Exchange() {
   const handleNext = () => {
     if (step === 1 && sendAmount && selectedSendCrypto && selectedGetCrypto) {
       setStep(2);
-    } else if (step === 2 && walletAddress) {
+    } else if (step === 2 && recipientAddress) {
       setStep(3);
     } else if (step === 3) {
       setStep(4);
@@ -254,6 +279,65 @@ export default function Exchange() {
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
+    }
+  };
+
+  const handleExchange = async (e) => {
+    e.preventDefault();
+
+    if (!selectedSendCrypto || !selectedGetCrypto || !sendAmount || !recipientAddress) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Debug logs
+      console.log('Selected Send Crypto:', selectedSendCrypto);
+      console.log('Selected Get Crypto:', selectedGetCrypto);
+      console.log('Send Amount:', sendAmount);
+      console.log('Recipient Address:', recipientAddress);
+
+      // Format the request data exactly as SimpleSwap's example
+      const exchangeData = {
+        "fixed": false,
+        "currency_from": selectedSendCrypto.symbol.toLowerCase(),
+        "currency_to": selectedGetCrypto.symbol.toLowerCase(),
+        "amount": sendAmount.toString(),
+        "address_to": recipientAddress,
+        "extra_id_to": extraId || "",
+        "user_refund_address": "",
+        "user_refund_extra_id": "",
+        "isAuthenticated": isAuthenticated // Pass authentication status
+      };
+
+      console.log('Exchange Request Data:', JSON.stringify(exchangeData, null, 2));
+
+      const response = await fetch('/api/create-exchange', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(exchangeData),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        toast.success('Exchange requested successfully');
+        
+        // Redirect to payment page with the necessary data
+        router.push(`/payment?currency_from=${result.currency_from}&address_from=${result.address_from}&amount=${sendAmount}&exchange_id=${result.id}`);
+      } else {
+        toast.error(result.description || 'Failed to create exchange');
+      }
+
+    } catch (error) {
+      console.error('Exchange error:', error);
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -532,7 +616,7 @@ export default function Exchange() {
                   </div>
                   <div className="pt-4 space-y-3">
                     {isAuthenticated ? (
-                      <div className="relative">
+                      <div className="relative" ref={accountDropdownRef}>
                         <button 
                           onClick={() => {
                             setIsButtonClick(true);
@@ -903,16 +987,31 @@ export default function Exchange() {
                 )}
 
                 {step === 2 && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="bg-white/5 backdrop-blur-md p-4 rounded-xl">
                       <label className="block text-sm text-white mb-2">
-                        Enter your {selectedGetCrypto ? selectedGetCrypto.name : 'selected cryptocurrency'} wallet address
+                        Enter the recipient&apos;s {selectedGetCrypto?.name} address
                       </label>
                       <input
                         type="text"
-                        value={walletAddress}
-                        onChange={(e) => setWalletAddress(e.target.value)}
-                        placeholder="Wallet Address"
+                        value={recipientAddress}
+                        onChange={(e) => setRecipientAddress(e.target.value)}
+                        placeholder={`${selectedGetCrypto?.name} Address`}
+                        className="w-full bg-white/10 backdrop-blur-md p-3 rounded-lg outline-none text-white placeholder-white/50"
+                      />
+                    </div>
+                    <div className="bg-white/5 backdrop-blur-md p-4 rounded-xl">
+                      <label className="block text-sm text-white mb-2">
+                        Extra ID (optional)
+                        <span className="text-xs text-white/50 ml-2">
+                          Required for some currencies like XRP, XLM
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        value={extraId}
+                        onChange={(e) => setExtraId(e.target.value)}
+                        placeholder="Extra ID (if required)"
                         className="w-full bg-white/10 backdrop-blur-md p-3 rounded-lg outline-none text-white placeholder-white/50"
                       />
                     </div>
@@ -920,16 +1019,28 @@ export default function Exchange() {
                 )}
 
                 {step === 3 && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="bg-white/5 backdrop-blur-md p-4 rounded-xl">
-                      <h3 className="text-lg text-white mb-4">Send your {selectedSendCrypto ? selectedSendCrypto.name : 'selected cryptocurrency'}</h3>
-                      <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg">
-                        <p className="text-sm text-white/80 mb-2">Send exactly:</p>
-                        <p className="text-lg font-medium text-white">{sendAmount} {selectedSendCrypto ? selectedSendCrypto.symbol.toUpperCase() : ''}</p>
-                        <p className="text-sm text-white/80 mt-4 mb-2">To address:</p>
-                        <p className="text-sm font-medium text-white break-all">
-                          0x1234567890abcdef1234567890abcdef12345678
-                        </p>
+                      <h3 className="text-lg text-white mb-4">Review Exchange Details</h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white/70">You Send:</span>
+                          <span className="text-white">{sendAmount} {selectedSendCrypto?.symbol}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white/70">You Get:</span>
+                          <span className="text-white">{getAmount} {selectedGetCrypto?.symbol}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white/70">Recipient Address:</span>
+                          <span className="text-white truncate max-w-[250px]">{recipientAddress}</span>
+                        </div>
+                        {extraId && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-white/70">Extra ID:</span>
+                            <span className="text-white">{extraId}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -944,33 +1055,45 @@ export default function Exchange() {
                     </div>
                     <h3 className="text-lg font-medium text-white">Exchange in Progress</h3>
                     <p className="text-sm text-white/80">
-                      Your exchange has been initiated. You will receive your {selectedGetCrypto ? selectedGetCrypto.symbol.toUpperCase() : 'selected cryptocurrency'} soon.
+                      Your exchange has been initiated. You will receive your {selectedGetCrypto?.symbol.toUpperCase()} soon.
                     </p>
                   </div>
                 )}
 
-                <div className="mt-8 flex justify-between">
-                  {step > 1 && (
-                    <button
-                      onClick={handleBack}
-                      className="px-6 py-3 text-white hover:bg-white/5 rounded-lg transition-colors backdrop-blur-md"
-                    >
-                      Back
-                    </button>
-                  )}
-                  {step < 4 && (
-                    <button
-                      onClick={handleNext}
-                      className="ml-auto px-6 py-3 bg-[#0f75fc] text-white rounded-lg hover:bg-[#0f75fc]/90 transition-colors"
-                      disabled={
-                        (step === 1 && (!sendAmount || !selectedSendCrypto || !selectedGetCrypto)) ||
-                        (step === 2 && !walletAddress)
-                      }
-                    >
-                      {step === 3 ? 'Confirm Exchange' : 'Next'}
-                    </button>
-                  )}
-                </div>
+                <form onSubmit={handleExchange} className="w-full max-w-4xl mx-auto">
+                  <div className="mt-8 flex justify-between">
+                    {step > 1 && (
+                      <button
+                        type="button"
+                        onClick={handleBack}
+                        className="px-6 py-3 text-white hover:bg-white/5 rounded-lg transition-colors backdrop-blur-md"
+                      >
+                        Back
+                      </button>
+                    )}
+                    {step < 3 ? (
+                      <button
+                        type="button"
+                        onClick={handleNext}
+                        className="ml-auto px-6 py-3 bg-[#0f75fc] text-white rounded-lg hover:bg-[#0f75fc]/90 transition-colors"
+                        disabled={
+                          (step === 1 && (!sendAmount || !selectedSendCrypto || !selectedGetCrypto)) ||
+                          (step === 2 && !recipientAddress)
+                        }
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        className="ml-auto px-6 py-3 bg-[#0f75fc] text-white rounded-lg hover:bg-[#0f75fc]/90 transition-colors"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? 'Creating Exchange...' : 'Confirm Exchange'}
+                      </button>
+                    )}
+                  </div>
+                </form>
               </div>
             </div>
           </div>
