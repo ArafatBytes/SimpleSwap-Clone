@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Image from 'next/image';
@@ -164,8 +164,23 @@ const Header = () => {
   );
 };
 
-export default function Payment() {
+// Loading component
+const LoadingState = () => (
+  <div className="min-h-screen bg-gradient-to-br from-blue-900 via-black to-black text-white">
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="animate-pulse flex flex-col items-center justify-center space-y-4">
+        <div className="h-8 bg-blue-700/20 rounded w-64"></div>
+        <div className="h-4 bg-blue-700/20 rounded w-48"></div>
+        <div className="h-32 bg-blue-700/20 rounded w-full max-w-md"></div>
+      </div>
+    </div>
+  </div>
+);
+
+// Client Component that uses useSearchParams
+const PaymentContent = () => {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [paymentDetails, setPaymentDetails] = useState({
     currency_from: searchParams.get('currency_from') || '',
     address_from: searchParams.get('address_from') || '',
@@ -315,5 +330,14 @@ export default function Payment() {
         </div>
       </div>
     </div>
+  );
+};
+
+// Main Payment Component with Suspense
+export default function Payment() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <PaymentContent />
+    </Suspense>
   );
 }
