@@ -45,7 +45,7 @@ export default function ReferralDashboard() {
   }, [router]);
 
   const copyReferralLink = () => {
-    const referralLink = `${window.location.origin}/signup?ref=${referralCode}`;
+    const referralLink = `${process.env.NEXT_PUBLIC_SITE_URL || typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${referralCode}`;
     navigator.clipboard.writeText(referralLink);
     toast.success('Referral link copied to clipboard!');
   };
@@ -123,7 +123,7 @@ export default function ReferralDashboard() {
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                 <input
                   type="text"
-                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${referralCode}`}
+                  value={`${process.env.NEXT_PUBLIC_SITE_URL || typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${referralCode}`}
                   className="flex-1 bg-blue-900/40 border border-blue-500/30 rounded-lg px-4 py-2 text-white text-sm min-w-0"
                   readOnly
                 />
