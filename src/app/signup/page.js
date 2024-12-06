@@ -27,8 +27,14 @@ function SignUpForm() {
     const ref = searchParams?.get('ref');
     if (ref) {
       setFormData(prev => ({ ...prev, referralCode: ref }));
+      
+      // Preserve the ref parameter in the URL
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('ref') !== ref) {
+        router.replace(`/signup?ref=${ref}`, { scroll: false });
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   // Check authentication and redirect
   useEffect(() => {
