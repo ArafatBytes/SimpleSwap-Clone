@@ -7,6 +7,12 @@ import { useRouter } from 'next/navigation';
 import { cryptoCategories } from '../../data/cryptoCategories';
 import { toast } from 'react-toastify';
 import { getExchangeRate, getAllCurrencies } from '../../lib/api/simpleswap';
+import { 
+  UserCircleIcon, 
+  ArrowRightOnRectangleIcon, 
+  IdentificationIcon,
+  UsersIcon 
+} from '@heroicons/react/24/outline';
 
 export default function Exchange() {
   const router = useRouter();
@@ -266,8 +272,38 @@ export default function Exchange() {
     }
   };
 
-  const handleNext = () => {
-    if (step === 1 && sendAmount && selectedSendCrypto && selectedGetCrypto) {
+  const handleNext = async () => {
+    if (step === 1) {
+      if (!selectedSendCrypto || !selectedGetCrypto || !sendAmount) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+
+      // Show warning for unverified users attempting large transactions
+      if (!isVerified && parseFloat(sendAmount) >= 1000) {
+        toast.warning(
+          'Important: For transactions of 1000+ units, ID verification is required to complete the exchange. Please verify your identity in your account settings.',
+          {
+            position: "top-center",
+            autoClose: 10000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            style: {
+              background: 'rgba(234, 179, 8, 0.9)',
+              color: '#000',
+              borderRadius: '8px',
+              padding: '16px',
+              fontSize: '14px',
+              maxWidth: '400px',
+              textAlign: 'center'
+            },
+          }
+        );
+      }
+
       setStep(2);
     } else if (step === 2 && recipientAddress) {
       setStep(3);
@@ -389,7 +425,6 @@ export default function Exchange() {
                 <div className="hidden xl:flex items-center">
                   <nav className="flex gap-8 mr-8">
                     <Link href="/" className="text-white hover:text-gray-300">Home</Link>
-                    <Link href="/dashboard" className="text-white hover:text-gray-300">Dashboard</Link>
                     <button 
                       onClick={() => scrollToSection('how-it-works')} 
                       className="text-[12px] sm:text-[14px] md:text-[16px] text-white/80 hover:text-white transition-colors"
@@ -526,6 +561,25 @@ export default function Exchange() {
                                 </div>
                               )}
                             </Link>
+                            <Link
+                              href="/referrals"
+                              className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M12 4.354a4 4 0 110 5.292M15 21H9m6 0a6 6 0 11-12 0 6 6 0 0112 0z"
+                                />
+                              </svg>
+                              Your Referrals
+                            </Link>
                             <button
                               onClick={handleLogout}
                               className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
@@ -571,9 +625,6 @@ export default function Exchange() {
                 <div className="px-6 py-6 space-y-4">
                   <Link href="/" className="block text-white hover:text-gray-300 py-2 border-b border-white/10">
                     Home
-                  </Link>
-                  <Link href="/dashboard" className="block text-white hover:text-gray-300 py-2 border-b border-white/10">
-                    Dashboard
                   </Link>
                   <button 
                     onClick={() => scrollToSection('how-it-works')}
@@ -705,6 +756,25 @@ export default function Exchange() {
                                   </svg>
                                 </div>
                               )}
+                            </Link>
+                            <Link
+                              href="/referrals"
+                              className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M12 4.354a4 4 0 110 5.292M15 21H9m6 0a6 6 0 11-12 0 6 6 0 0112 0z"
+                                />
+                              </svg>
+                              Your Referrals
                             </Link>
                             <button
                               onClick={handleLogout}

@@ -61,7 +61,23 @@ const exchangeSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: false // Optional since anonymous users can create exchanges
+    required: true
+  },
+  sendAmount: {
+    type: Number,
+    required: true
+  },
+  sendCrypto: {
+    type: String,
+    required: true
+  },
+  getCrypto: {
+    type: String,
+    required: true
+  },
+  recipientAddress: {
+    type: String,
+    required: true
   },
   // Locked transaction fields
   isLocked: {
@@ -88,6 +104,10 @@ const exchangeSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  referralEarnings: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true // This will automatically update the updatedAt timestamp
@@ -99,6 +119,32 @@ exchangeSchema.index({ userId: 1 });
 exchangeSchema.index({ status: 1 });
 exchangeSchema.index({ createdAt: 1 });
 exchangeSchema.index({ isLocked: 1 });
+
+// Calculate and update referral earnings after exchange completion
+exchangeSchema.post('save', async function(doc) {
+  if (doc.status === 'completed') {
+    try {
+      // Find the user who made the exchange
+      const user = await mongoose.model('User').findById(doc.userId);
+      if (user && user.referredBy) {
+        // Calculate referral earnings (0.5% of transaction amount)
+        const earnings = doc.sendAmount * 0.005;
+        
+        // Update referrer's earnings
+        await mongoose.model('User').findByIdAndUpdate(
+          user.referredBy,
+          { $inc: { referralEarnings: earnings } }
+        );
+
+        // Update the exchange document with the referral earnings
+        doc.referralEarnings = earnings;
+        await doc.save();
+      }
+    } catch (error) {
+      console.error('Error processing referral earnings:', error);
+    }
+  }
+});
 
 const Exchange = mongoose.models.Exchange || mongoose.model('Exchange', exchangeSchema);
 

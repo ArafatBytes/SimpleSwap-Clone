@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { toast, Toaster } from 'react-hot-toast';
 
 export default function SignUp() {
   const router = useRouter();
@@ -17,45 +18,30 @@ export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
 
   useEffect(() => {
-    // Check if user is authenticated
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          // Verify token with the server
-          const response = await fetch('/api/auth/verify', {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
-          
-          if (response.ok) {
-            setIsAuthenticated(true);
-            router.push('/'); // Redirect to home if already authenticated
-          } else {
-            localStorage.removeItem('token');
-            setIsAuthenticated(false);
-          }
-        } catch (error) {
-          console.error('Auth check error:', error);
-          localStorage.removeItem('token');
-          setIsAuthenticated(false);
-        }
-      } else {
-        setIsAuthenticated(false);
-      }
-    };
+    // Check if user is authenticated and redirect if true
+    const token = localStorage.getItem('token');
+    if (token) {
+      setIsAuthenticated(true);
+      router.push('/');
+    }
 
-    checkAuth();
+    // Check for referral code in URL
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      setReferralCode(ref);
+    }
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsAuthenticated(false);
-    router.push('/login');
-  };
+  // Add a separate useEffect for handling navigation after successful signup
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -65,12 +51,13 @@ export default function SignUp() {
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      toast.error('Passwords do not match');
       setLoading(false);
       return;
     }
 
     try {
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch('/api/auth/signup-with-referral', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,6 +65,7 @@ export default function SignUp() {
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
+          referralCode: referralCode
         }),
       });
 
@@ -87,17 +75,18 @@ export default function SignUp() {
         throw new Error(data.error || 'Something went wrong');
       }
 
-      // Store token in localStorage
+      // Store token and email in localStorage
       localStorage.setItem('token', data.token);
       localStorage.setItem('userEmail', data.email);
       
-      // Set authentication state
-      setIsAuthenticated(true);
+      // Show success message
+      toast.success('Account created successfully! You can now start earning referral rewards.');
       
-      // Redirect to home page
-      router.push('/');
+      // Set authentication state - navigation will happen in useEffect
+      setIsAuthenticated(true);
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
       setIsAuthenticated(false);
     } finally {
       setLoading(false);
@@ -112,8 +101,21 @@ export default function SignUp() {
     }));
   };
 
+  // Remove the direct navigation and just render loading state if authenticated
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-black to-black flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p>Redirecting to homepage...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-black to-black">
+      <Toaster position="top-center" />
       {/* Header */}
       <header className="bg-transparent border-b border-gray-800">
         <nav className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-4">
@@ -293,6 +295,26 @@ export default function SignUp() {
                     </svg>
                   </button>
                 </div>
+              </div>
+
+              <div>
+                <label 
+                  htmlFor="referralCode" 
+                  className="block text-sm font-medium text-gray-200"
+                  style={{ fontFamily: 'Poppins, Inter, sans-serif' }}
+                >
+                  Referral Code (optional)
+                </label>
+                <input
+                  id="referralCode"
+                  name="referralCode"
+                  type="text"
+                  autoComplete="off"
+                  className="mt-1 block w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:ring-2 focus:ring-[#0f75fc] text-white placeholder-gray-400 backdrop-blur-sm"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  placeholder="Enter referral code"
+                />
               </div>
             </div>
 
