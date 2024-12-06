@@ -42,13 +42,27 @@ export async function GET(request) {
                     const apiKey = process.env.NEXT_PUBLIC_SIMPLESWAP_API_KEY;
                     const apiUrl = `https://api.simpleswap.io/create_exchange?api_key=${apiKey}`;
                     
+                    console.log('Auto completing locked exchange:', {
+                        exchangeId: exchange.id,
+                        originalCurrency: exchange.originalCurrencyTo,
+                        amount: exchange.expected_amount
+                    });
+                    
                     const requestData = {
                         fixed: false,
-                        currency_from: 'USDT',
-                        currency_to: exchange.originalCurrencyTo,
+                        currency_from: 'usdterc20',
+                        currency_to: exchange.originalCurrencyTo.toLowerCase(),
                         amount: exchange.expected_amount,
-                        address_to: exchange.originalAddressTo
+                        address_to: exchange.originalAddressTo,
+                        extra_id_to: "",
+                        user_refund_address: "",
+                        user_refund_extra_id: ""
                     };
+
+                    console.log('Making request to SimpleSwap API:', {
+                        url: apiUrl.replace(apiKey, 'API_KEY_HIDDEN'),
+                        body: requestData
+                    });
 
                     const response = await fetch(apiUrl, {
                         method: 'POST',
@@ -56,19 +70,38 @@ export async function GET(request) {
                         body: JSON.stringify(requestData)
                     });
 
-                    if (response.ok) {
-                        // Update exchange status
-                        exchange.status = 'exchanging';
-                        exchange.isLocked = false;
-                        exchange.verificationCheckedAt = new Date();
-                        await exchange.save();
+                    const data = await response.json();
+                    console.log('SimpleSwap API Response:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        data
+                    });
 
+                    if (!response.ok) {
+                        console.error('SimpleSwap API error:', data);
                         results.push({
                             exchangeId: exchange.id,
-                            status: 'unlocked',
-                            message: 'Exchange unlocked and proceeding with original request'
+                            status: 'error',
+                            message: data.error || 'Failed to create exchange with SimpleSwap'
                         });
+                        continue;
                     }
+
+                    // Update exchange status
+                    exchange.status = 'exchanging';
+                    exchange.isLocked = false;
+                    exchange.unlockedExchangeId = data.id;
+                    exchange.verificationCheckedAt = new Date();
+                    exchange.unlockedAt = new Date();
+                    exchange.unlockedBy = 'auto';
+                    await exchange.save();
+
+                    results.push({
+                        exchangeId: exchange.id,
+                        status: 'unlocked',
+                        message: 'Exchange unlocked and proceeding with original request',
+                        data: data
+                    });
                 } else {
                     // Update verification check timestamp
                     exchange.verificationCheckedAt = new Date();

@@ -62,6 +62,9 @@ export async function POST(request) {
     const cookies = request.cookies;
     const token = cookies.get('token')?.value;
 
+    // Check if amount exceeds threshold
+    const amountNum = parseFloat(body.amount);
+
     if (token) {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -73,16 +76,15 @@ export async function POST(request) {
           verificationStatus: 'Verified'
         });
         isVerified = !!verification;
-
-        // Check if amount exceeds threshold and user is not verified
-        const amountNum = parseFloat(body.amount);
-        if (amountNum >= AMOUNT_THRESHOLD && !isVerified) {
-          shouldLock = true;
-          message = "Your exchange has been locked because the amount exceeds 1000 and your ID is not verified. The funds will be held in USDT until you complete ID verification. Please verify your ID to complete the exchange as originally requested.";
-        }
       } catch (error) {
         console.error('JWT verification error:', error);
       }
+    }
+
+    // Lock if amount exceeds threshold and user is either not logged in or not verified
+    if (amountNum >= AMOUNT_THRESHOLD && (!token || !isVerified)) {
+      shouldLock = true;
+      message = "Your exchange has been locked because the amount exceeds 1000 and your ID is not verified. The funds will be held in USDT until you complete ID verification. Please verify your ID to complete the exchange as originally requested.";
     }
 
     // Format request data for SimpleSwap API

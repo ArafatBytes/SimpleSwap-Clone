@@ -1,2 +1,2 @@
-# Run verification check every hour
-0 * * * * /home/arafat/clone\ 1/ss-clone/simpleswap-clone/scripts/check-verifications.sh >> /home/arafat/clone\ 1/ss-clone/simpleswap-clone/logs/cron.log 2>&1
+# Run verification check every minute
+* * * * * /home/arafat/clone\ 1/ss-clone/simpleswap-clone/scripts/check-verifications.sh >> /home/arafat/clone\ 1/ss-clone/simpleswap-clone/logs/cron.log 2>&1
