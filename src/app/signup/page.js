@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast, Toaster } from 'react-hot-toast';
 
 export default function SignUp() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -28,13 +30,13 @@ export default function SignUp() {
       router.push('/');
     }
 
-    // Check for referral code in URL
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get('ref');
+    // Check for referral code in URL using useSearchParams
+    const ref = searchParams.get('ref');
     if (ref) {
       setReferralCode(ref);
+      console.log('Referral code found:', ref); // Debug log
     }
-  }, [router]);
+  }, [router, searchParams]);
 
   // Add a separate useEffect for handling navigation after successful signup
   useEffect(() => {
