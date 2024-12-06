@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast, Toaster } from 'react-hot-toast';
 
-export default function SignUp() {
+function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -38,7 +38,6 @@ export default function SignUp() {
     }
   }, [router, searchParams]);
 
-  // Add a separate useEffect for handling navigation after successful signup
   useEffect(() => {
     if (isAuthenticated) {
       router.push('/');
@@ -103,7 +102,6 @@ export default function SignUp() {
     }));
   };
 
-  // Remove the direct navigation and just render loading state if authenticated
   if (isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-black to-black flex items-center justify-center">
@@ -347,5 +345,17 @@ export default function SignUp() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function SignUp() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0f1011] flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
+      <SignUpForm />
+    </Suspense>
   );
 }
