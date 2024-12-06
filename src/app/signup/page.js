@@ -27,11 +27,6 @@ function SignUpForm() {
     const ref = searchParams?.get('ref');
     if (ref) {
       setFormData(prev => ({ ...prev, referralCode: ref }));
-      const currentUrl = new URL(window.location.href);
-      if (!currentUrl.searchParams.has('ref')) {
-        currentUrl.searchParams.set('ref', ref);
-        window.history.replaceState({}, '', currentUrl.toString());
-      }
     }
   }, [searchParams]);
 
