@@ -14,7 +14,7 @@ function SignUpForm() {
     email: '',
     password: '',
     confirmPassword: '',
-    referralCode: '' 
+    referralCode: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,6 +22,7 @@ function SignUpForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Handle referral code from URL
   useEffect(() => {
     const ref = searchParams?.get('ref');
     if (ref) {
@@ -34,13 +35,22 @@ function SignUpForm() {
     }
   }, [searchParams]);
 
+  // Check authentication and redirect
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       setIsAuthenticated(true);
-      router.push('/');
     }
-  }, [router]);
+  }, []);
+
+  // Handle redirection
+  useEffect(() => {
+    if (isAuthenticated) {
+      setTimeout(() => {
+        router.push('/');
+      }, 1500); // Add a small delay to show the loading state
+    }
+  }, [isAuthenticated, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -76,6 +86,8 @@ function SignUpForm() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('userEmail', data.email);
       toast.success('Account created successfully! You can now start earning referral rewards.');
+      
+      // Set authenticated state - this will trigger the redirect
       setIsAuthenticated(true);
     } catch (err) {
       setError(err.message);

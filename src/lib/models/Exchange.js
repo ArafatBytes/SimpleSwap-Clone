@@ -65,19 +65,19 @@ const exchangeSchema = new mongoose.Schema({
   },
   sendAmount: {
     type: Number,
-    required: true
+    required: false
   },
   sendCrypto: {
     type: String,
-    required: true
+    required: false
   },
   getCrypto: {
     type: String,
-    required: true
+    required: false
   },
   recipientAddress: {
     type: String,
-    required: true
+    required: false
   },
   // Locked transaction fields
   isLocked: {

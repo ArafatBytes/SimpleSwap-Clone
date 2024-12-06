@@ -39,6 +39,7 @@ export default function Exchange() {
   const [isButtonClick, setIsButtonClick] = useState(false);
   const [cryptocurrencies, setCryptocurrencies] = useState([]);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const [verificationCheckInterval, setVerificationCheckInterval] = useState(null);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -141,6 +142,51 @@ export default function Exchange() {
       setUserEmail('');
     }
   }, []);
+
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      try {
+        const response = await fetch('/api/auth/verification-status');
+        console.log('Verification status response:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Frontend received verification status:', data);
+          setIsVerified(data.isVerified);
+          console.log('Updated isVerified state:', data.isVerified);
+        } else {
+          const errorData = await response.json();
+          console.error('Verification status error:', errorData);
+        }
+      } catch (error) {
+        console.error('Error checking verification status:', error);
+      }
+    };
+
+    if (isAuthenticated) {
+      console.log('Starting verification status check for authenticated user');
+      // Check immediately
+      checkVerificationStatus();
+      
+      // Set up interval for periodic checks
+      const interval = setInterval(checkVerificationStatus, 60000); // Check every minute
+      setVerificationCheckInterval(interval);
+
+      return () => {
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
+    } else {
+      console.log('User not authenticated, clearing verification check interval');
+      // Clear interval if user is not authenticated
+      if (verificationCheckInterval) {
+        clearInterval(verificationCheckInterval);
+        setVerificationCheckInterval(null);
+      }
+      setIsVerified(false);
+    }
+  }, [isAuthenticated]);
 
   // Filter cryptocurrencies based on category and search query
   const getFilteredCryptos = (searchQuery, category = 'all') => {
@@ -524,9 +570,9 @@ export default function Exchange() {
                             </div>
                             <Link
                               href="/verification"
-                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${isAuthenticated && isVerified ? 'cursor-not-allowed opacity-50' : ''}`}
+                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${isVerified ? 'pointer-events-none opacity-50' : ''}`}
                               onClick={(e) => {
-                                if (isAuthenticated && isVerified) {
+                                if (isVerified) {
                                   e.preventDefault();
                                 }
                               }}
@@ -545,7 +591,7 @@ export default function Exchange() {
                                 />
                               </svg>
                               ID Verification
-                              {isAuthenticated && isVerified && (
+                              {isVerified && (
                                 <div className="ml-2 p-1 rounded-full bg-green-500/20 backdrop-blur-sm">
                                   <svg 
                                     className="w-4 h-4 text-green-500" 
@@ -720,9 +766,9 @@ export default function Exchange() {
                             </div>
                             <Link
                               href="/verification"
-                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${isAuthenticated && isVerified ? 'cursor-not-allowed opacity-50' : ''}`}
+                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${isVerified ? 'pointer-events-none opacity-50' : ''}`}
                               onClick={(e) => {
-                                if (isAuthenticated && isVerified) {
+                                if (isVerified) {
                                   e.preventDefault();
                                 }
                               }}
@@ -741,7 +787,7 @@ export default function Exchange() {
                                 />
                               </svg>
                               ID Verification
-                              {isAuthenticated && isVerified && (
+                              {isVerified && (
                                 <div className="ml-2 p-1 rounded-full bg-green-500/20 backdrop-blur-sm">
                                   <svg 
                                     className="w-4 h-4 text-green-500" 

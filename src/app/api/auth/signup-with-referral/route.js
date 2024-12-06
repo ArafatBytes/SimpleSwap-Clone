@@ -18,13 +18,15 @@ export async function POST(request) {
       );
     }
 
-    // Find referrer if referral code is provided
+    // Initialize referrerId
     let referrerId = null;
-    if (referralCode) {
-      const referrer = await User.findOne({ referralCode });
+
+    // Only process referral if a code is provided
+    if (referralCode && referralCode.trim() !== '') {
+      const referrer = await User.findOne({ referralCode: referralCode.trim() });
       if (referrer) {
         referrerId = referrer._id;
-        // Increment referrer's count
+        // Increment referrer's count only when their referral code is used
         await User.findByIdAndUpdate(referrer._id, {
           $inc: { referralCount: 1 }
         });
@@ -35,7 +37,7 @@ export async function POST(request) {
     const user = await User.create({
       email,
       password,
-      referredBy: referrerId
+      referredBy: referrerId // This will be null if no valid referral code was provided
     });
 
     // Generate JWT token
