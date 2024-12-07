@@ -5,7 +5,6 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 import { cryptoCategories, getCoinsByCategory } from '../data/cryptoCategories';
-import { toast } from 'react-toastify';
 import { getExchangeRate, getAllCurrencies } from '../lib/api/simpleswap';
 import { 
   UserCircleIcon, 
@@ -13,6 +12,8 @@ import {
   IdentificationIcon,
   UsersIcon 
 } from '@heroicons/react/24/outline';
+import { validateAddress } from '../lib/utils/addressValidator';
+import { toast } from "react-toastify";
 
 export default function Home() {
   const router = useRouter();
@@ -36,6 +37,15 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [minAmountError, setMinAmountError] = useState(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [step, setStep] = useState(1);
+  const [recipientAddress, setRecipientAddress] = useState('');
+  const [extraId, setExtraId] = useState('');
+  const [addressError, setAddressError] = useState('');
+  const [refundAddress, setRefundAddress] = useState('');
+  const [refundAddressError, setRefundAddressError] = useState('');
+  const [refundExtraId, setRefundExtraId] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [exchangeId, setExchangeId] = useState(null);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -89,17 +99,22 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem('token');
-    const email = localStorage.getItem('userEmail');
-    if (token && email) {
-      setIsAuthenticated(true);
-      setUserEmail(email);
-    } else {
-      setIsAuthenticated(false);
-      setUserEmail('');
+    function handleClickOutside(event) {
+      if (sendDropdownRef.current && !sendDropdownRef.current.contains(event.target)) {
+        setShowSendDropdown(false);
+      }
+      if (getDropdownRef.current && !getDropdownRef.current.contains(event.target)) {
+        setShowGetDropdown(false);
+      }
+      if (!isButtonClick && accountDropdownRef.current && !accountDropdownRef.current.contains(event.target)) {
+        setIsAccountDropdownOpen(false);
+      }
+      setIsButtonClick(false);
     }
-  }, []);
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isButtonClick]);
 
   const handleLogout = async () => {
     localStorage.removeItem('token');
@@ -133,25 +148,6 @@ export default function Home() {
       toast.error('Error logging out');
     }
   };
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (sendDropdownRef.current && !sendDropdownRef.current.contains(event.target)) {
-        setShowSendDropdown(false);
-      }
-      if (getDropdownRef.current && !getDropdownRef.current.contains(event.target)) {
-        setShowGetDropdown(false);
-      }
-      if (!isButtonClick && accountDropdownRef.current && !accountDropdownRef.current.contains(event.target)) {
-        setIsAccountDropdownOpen(false);
-      }
-      setIsButtonClick(false);
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isButtonClick]);
 
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
@@ -227,11 +223,6 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    console.log('getAmount changed to:', getAmount);
-  }, [getAmount]);
-
-  // Filter cryptocurrencies based on category and search query
   const getFilteredCryptos = (searchQuery, category = 'all') => {
     let filteredList = cryptocurrencies;
 
@@ -253,9 +244,149 @@ export default function Home() {
     return filteredList;
   };
 
-  // Get filtered lists for both dropdowns
   const filteredSendCryptos = getFilteredCryptos(sendSearchQuery, selectedCategory);
   const filteredGetCryptos = getFilteredCryptos(getSearchQuery, selectedCategory);
+
+  const handleNext = async () => {
+    if (step === 1) {
+      if (!selectedSendCrypto || !selectedGetCrypto || !sendAmount) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+
+      // Show warning for unverified users attempting large transactions
+      if (!isVerified && parseFloat(sendAmount) >= 1000) {
+        toast.warning(
+          'Important: For transactions of 1000+ units, ID verification is required to complete the exchange. Please verify your identity in your account settings.',
+          {
+            position: "top-center",
+            autoClose: 10000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            style: {
+              background: 'rgba(234, 179, 8, 0.9)',
+              color: '#000',
+              borderRadius: '8px',
+              padding: '16px',
+              fontSize: '14px',
+              maxWidth: '400px',
+              textAlign: 'center'
+            },
+          }
+        );
+      }
+
+      setStep(2);
+    } else if (step === 2 && recipientAddress) {
+      setStep(3);
+    } else if (step === 3) {
+      setStep(4);
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  };
+
+  const handleExchange = async (e) => {
+    e.preventDefault();
+
+    if (!selectedSendCrypto || !selectedGetCrypto || !sendAmount || !recipientAddress) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Debug logs
+      console.log('Selected Send Crypto:', selectedSendCrypto);
+      console.log('Selected Get Crypto:', selectedGetCrypto);
+      console.log('Send Amount:', sendAmount);
+      console.log('Recipient Address:', recipientAddress);
+
+      // Format the request data exactly as SimpleSwap's example
+      const exchangeData = {
+        "fixed": false,
+        "currency_from": selectedSendCrypto.symbol.toLowerCase(),
+        "currency_to": selectedGetCrypto.symbol.toLowerCase(),
+        "amount": sendAmount.toString(),
+        "address_to": recipientAddress,
+        "extra_id_to": extraId || "",
+        "user_refund_address": refundAddress || "",
+        "user_refund_extra_id": refundExtraId || "",
+        "isAuthenticated": isAuthenticated
+      };
+
+      console.log('Exchange Request Data:', JSON.stringify(exchangeData, null, 2));
+
+      const response = await fetch('/api/create-exchange', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(exchangeData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Exchange initiated successfully!');
+        router.push(`/payment?currency_from=${data.currency_from}&address_from=${data.address_from}&amount=${sendAmount}&exchange_id=${data.id}`);
+      } else {
+        throw new Error(data.message || 'Failed to create exchange');
+      }
+    } catch (error) {
+      console.error('Exchange error:', error);
+      toast.error(error.message || 'Failed to create exchange. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const isNextButtonDisabled = () => {
+    if (step === 1) {
+      return !selectedSendCrypto || !selectedGetCrypto || !sendAmount || minAmountError;
+    } else if (step === 2) {
+      return !recipientAddress || addressError;
+    } else if (step === 3) {
+      return refundAddress && refundAddressError; // Only block if refund address is provided and invalid
+    } else if (step === 4) {
+      return !termsAccepted;
+    }
+    return false;
+  };
+
+  // Function to handle address validation
+  const validateRecipientAddress = async (address) => {
+    if (!selectedGetCrypto) return;
+    const validation = validateAddress(address, selectedGetCrypto.symbol);
+    if (!validation.isValid) {
+      setAddressError(validation.message);
+      return false;
+    } else {
+      setAddressError('');
+      return true;
+    }
+  };
+
+  // Function to handle refund address validation
+  const handleRefundAddressChange = (e) => {
+    const address = e.target.value;
+    setRefundAddress(address);
+    
+    if (selectedSendCrypto && address) {
+      const validation = validateAddress(address, selectedSendCrypto.symbol);
+      setRefundAddressError(validation.message);
+    } else {
+      setRefundAddressError('');
+    }
+  };
 
   return (
     <div className="min-h-screen relative" style={{ backgroundColor: "#062763" }}>
@@ -711,219 +842,406 @@ export default function Home() {
                 fontSize: 'min(3.5vw, 19px)'
               }}>Free from sign-up, limits, complications</p>
 
-              <div className="mt-8 bg-white rounded-[30px] p-6 sm:p-8 md:p-12 w-[90%] sm:w-full max-w-2xl mx-auto">
+              <div className="mt-8 bg-white/10 backdrop-blur-lg rounded-[30px] p-6 sm:p-8 md:p-12 w-[90%] sm:w-full max-w-2xl mx-auto border border-white/20 shadow-xl relative z-[2]">
                 <div className="flex justify-center">
                   <h2 style={{ 
                     fontFamily: 'Poppins, Inter, sans-serif',
-                    fontSize: 'min(3vw, 15px)',
+                    fontSize: 'min(4.5vw, 24px)',
                     fontWeight: '500',
-                    color: '#3f5878'
+                    color: 'white'
                   }}>Crypto Exchange</h2>
                 </div>
+                
+                <div className="flex justify-between items-center mt-8 mb-6">
+                  {[1, 2, 3, 4].map((stepNumber) => (
+                    <div key={stepNumber} className="flex items-center">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        step >= stepNumber ? 'bg-blue-500 text-white' : 'bg-white/10 text-white/50'
+                      }`}>
+                        {stepNumber}
+                      </div>
+                      {stepNumber < 4 && (
+                        <div className={`w-full h-0.5 ${
+                          step > stepNumber ? 'bg-blue-500' : 'bg-white/10'
+                        }`} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+
                 <div className="mt-8 flex flex-col gap-[8px]">
-                  <div className="w-full rounded-xl h-[70px] flex overflow-visible">
-                    <div 
-                      ref={sendDropdownRef}
-                      className="w-[35%] h-full bg-[#edf1f7] flex items-center justify-between px-4 sm:px-6 relative cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowSendDropdown(!showSendDropdown);
-                        setShowGetDropdown(false);
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        {selectedSendCrypto && (
-                          <img 
-                            src={selectedSendCrypto.icon} 
-                            alt={selectedSendCrypto.symbol} 
-                            className="w-5 h-5 sm:w-6 sm:h-6" 
-                          />
-                        )}
-                        <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">
-                          {selectedSendCrypto ? selectedSendCrypto.symbol.toUpperCase() : 'Select'}
-                        </span>
-                      </div>
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-[#3f5878]">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                      </svg>
-                      
-                      {showSendDropdown && (
-                        <div className="absolute top-[75px] left-0 w-[calc(90vw-2rem)] max-w-[calc(32rem-2rem)] sm:w-[calc(100vw-5rem)] md:w-[calc(100vw-7rem)] bg-white rounded-xl shadow-lg overflow-y-auto z-20 max-h-[50vh]">
-                          <div className="bg-white p-2 border-b">
-                            <input
-                              type="text"
-                              placeholder="Search cryptocurrency..."
-                              value={sendSearchQuery}
-                              onChange={(e) => setSendSearchQuery(e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm text-[#1a2b4b]"
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                  {step === 1 && (
+                    <>
+                      <div className="w-full rounded-xl h-[70px] flex overflow-visible relative">
+                        <div 
+                          ref={sendDropdownRef}
+                          className="w-[35%] h-full bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-between px-4 sm:px-6 relative cursor-pointer rounded-xl"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowSendDropdown(!showSendDropdown);
+                            setShowGetDropdown(false);
+                          }}
+                          style={{ zIndex: showSendDropdown ? 50 : 1 }}
+                        >
+                          <div className="flex items-center gap-2">
+                            {selectedSendCrypto && (
+                              <img 
+                                src={selectedSendCrypto.icon} 
+                                alt={selectedSendCrypto.symbol} 
+                                className="w-5 h-5 sm:w-6 sm:h-6" 
+                              />
+                            )}
+                            <span className="text-[12px] sm:text-[14px] font-semibold text-white">
+                              {selectedSendCrypto ? selectedSendCrypto.symbol.toUpperCase() : 'Select'}
+                            </span>
                           </div>
-                          <div className="flex flex-wrap gap-2 p-4 border-b border-gray-100">
-                            {Object.entries(cryptoCategories).map(([key, _]) => (
-                              <button
-                                key={key}
-                                className={`px-3 py-1 rounded-full text-xs ${
-                                  selectedCategory === key
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory(key);
-                                }}
-                              >
-                                {key.charAt(0).toUpperCase() + key.slice(1)}
-                              </button>
-                            ))}
-                          </div>
-                          <div>
-                            {filteredSendCryptos.map((crypto) => (
-                              <div
-                                key={crypto.symbol}
-                                className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedSendCrypto(crypto);
-                                  setShowSendDropdown(false);
-                                  setSendSearchQuery('');
-                                }}
-                              >
-                                <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
-                                <div>
-                                  <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol.toUpperCase()}</p>
-                                  <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
-                                </div>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-white/70">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                          
+                          {showSendDropdown && (
+                            <div className="fixed top-[75px] left-0 w-[calc(90vw-2rem)] max-w-[calc(32rem-2rem)] sm:w-[calc(100vw-5rem)] md:w-[calc(100vw-7rem)] bg-white/20 backdrop-blur-2xl border border-white/20 rounded-xl shadow-2xl overflow-y-auto z-[100] max-h-[50vh]">
+                              <div className="bg-white/10 backdrop-blur-xl p-2 border-b border-white/20">
+                                <input
+                                  type="text"
+                                  placeholder="Search cryptocurrency..."
+                                  value={sendSearchQuery}
+                                  onChange={(e) => setSendSearchQuery(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-lg bg-white/10 backdrop-blur-xl border border-white/20 focus:outline-none focus:border-blue-500 text-sm text-white placeholder-white/50"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
                               </div>
-                            ))}
+                              <div className="flex flex-wrap gap-2 p-4 border-b border-white/20">
+                                {Object.entries(cryptoCategories).map(([key, _]) => (
+                                  <button
+                                    key={key}
+                                    className={`px-3 py-1 rounded-full text-xs ${
+                                      selectedCategory === key
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-white/10 backdrop-blur-xl text-white/70 hover:bg-white/20'
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCategory(key);
+                                    }}
+                                  >
+                                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="bg-white/10">
+                                {filteredSendCryptos.map((crypto) => (
+                                  <div
+                                    key={crypto.symbol}
+                                    className="flex items-center gap-2 px-4 py-3 hover:bg-white/20 cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedSendCrypto(crypto);
+                                      setShowSendDropdown(false);
+                                      setSendSearchQuery('');
+                                    }}
+                                  >
+                                    <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
+                                    <div>
+                                      <p className="text-[12px] font-semibold text-white">{crypto.symbol.toUpperCase()}</p>
+                                      <p className="text-[10px] text-white/70">{crypto.name}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 bg-white/5 backdrop-blur-md border border-white/10 ml-[8px] flex items-center px-4 sm:px-6 relative rounded-xl">
+                          <input 
+                            type="text"
+                            value={sendAmount}
+                            onChange={(e) => handleNumberInput(e.target.value, setSendAmount)}
+                            placeholder="You Send" 
+                            className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium text-white placeholder-white/50" 
+                            style={{ 
+                              fontFamily: 'Poppins, Inter, sans-serif'
+                            }}
+                          />
+                          {minAmountError && (
+                            <div className="absolute left-0 -bottom-7 text-xs text-yellow-300 bg-yellow-500/10 backdrop-blur-md px-2 py-1 rounded-md border border-yellow-500/20">
+                              Min amount: {minAmountError.amount} {minAmountError.currency}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="w-full rounded-xl h-[70px] flex overflow-visible">
+                        <div 
+                          ref={getDropdownRef}
+                          className="w-[35%] h-full bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-between px-4 sm:px-6 relative cursor-pointer rounded-xl"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowGetDropdown(!showGetDropdown);
+                            setShowSendDropdown(false);
+                          }}
+                          style={{ zIndex: showGetDropdown ? 50 : 1 }}
+                        >
+                          <div className="flex items-center gap-2">
+                            {selectedGetCrypto && (
+                              <img 
+                                src={selectedGetCrypto.icon} 
+                                alt={selectedGetCrypto.symbol} 
+                                className="w-5 h-5 sm:w-6 sm:h-6" 
+                              />
+                            )}
+                            <span className="text-[12px] sm:text-[14px] font-semibold text-white">
+                              {selectedGetCrypto ? selectedGetCrypto.symbol.toUpperCase() : 'Select'}
+                            </span>
                           </div>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-white/70">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                          
+                          {showGetDropdown && (
+                            <div className="fixed top-[75px] left-0 w-[calc(90vw-2rem)] max-w-[calc(32rem-2rem)] sm:w-[calc(100vw-5rem)] md:w-[calc(100vw-7rem)] bg-white/20 backdrop-blur-2xl border border-white/20 rounded-xl shadow-2xl overflow-y-auto z-[100] max-h-[50vh]">
+                              <div className="bg-white/10 backdrop-blur-xl p-2 border-b border-white/20">
+                                <input
+                                  type="text"
+                                  placeholder="Search cryptocurrency..."
+                                  value={getSearchQuery}
+                                  onChange={(e) => setGetSearchQuery(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-lg bg-white/10 backdrop-blur-xl border border-white/20 focus:outline-none focus:border-blue-500 text-sm text-white placeholder-white/50"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                              <div className="flex flex-wrap gap-2 p-4 border-b border-white/20">
+                                {Object.entries(cryptoCategories).map(([key, _]) => (
+                                  <button
+                                    key={key}
+                                    className={`px-3 py-1 rounded-full text-xs ${
+                                      selectedCategory === key
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-white/10 backdrop-blur-xl text-white/70 hover:bg-white/20'
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCategory(key);
+                                    }}
+                                  >
+                                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="bg-white/10">
+                                {filteredGetCryptos.map((crypto) => (
+                                  <div
+                                    key={crypto.symbol}
+                                    className="flex items-center gap-2 px-4 py-3 hover:bg-white/20 cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedGetCrypto(crypto);
+                                      setShowGetDropdown(false);
+                                      setGetSearchQuery('');
+                                    }}
+                                  >
+                                    <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
+                                    <div>
+                                      <p className="text-[12px] font-semibold text-white">{crypto.symbol.toUpperCase()}</p>
+                                      <p className="text-[10px] text-white/70">{crypto.name}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 bg-white/5 backdrop-blur-md border border-white/10 ml-[8px] flex items-center px-4 sm:px-6 rounded-xl">
+                          <input 
+                            type="text"
+                            value={getAmount}
+                            readOnly
+                            placeholder="You Get" 
+                            className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium text-white placeholder-white/50 cursor-not-allowed" 
+                            style={{ 
+                              fontFamily: 'Poppins, Inter, sans-serif'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  {step === 2 && (
+                    <div className="space-y-4">
+                      <div className="bg-white/5 backdrop-blur-md rounded-xl p-4">
+                        <label className="block text-sm font-medium text-white mb-2">
+                          {selectedGetCrypto?.symbol.toUpperCase()} Recipient Address
+                        </label>
+                        <input
+                          type="text"
+                          value={recipientAddress}
+                          onChange={(e) => {
+                            setRecipientAddress(e.target.value);
+                            validateRecipientAddress(e.target.value);
+                          }}
+                          className="w-full bg-white/5 backdrop-blur-md rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-white/10"
+                          placeholder={`Enter your ${selectedGetCrypto?.symbol.toUpperCase()} address`}
+                        />
+                        {addressError && (
+                          <p className="mt-2 text-red-400 text-xs">{addressError}</p>
+                        )}
+                      </div>
+                      
+                      {selectedGetCrypto?.has_extra_id && (
+                        <div className="bg-white/5 backdrop-blur-md rounded-xl p-4">
+                          <label className="block text-sm font-medium text-white mb-2">
+                            Extra ID (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={extraId}
+                            onChange={(e) => setExtraId(e.target.value)}
+                            className="w-full bg-white/5 backdrop-blur-md rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-white/10"
+                            placeholder="Enter Extra ID if required"
+                          />
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 bg-[#edf1f7] ml-[8px] flex items-center px-4 sm:px-6 relative">
-                      <input 
-                        type="text"
-                        value={sendAmount}
-                        onChange={(e) => handleNumberInput(e.target.value, setSendAmount)}
-                        placeholder="You Send" 
-                        className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium" 
+                  )}
+                  
+                  {step === 3 && (
+                    <div className="space-y-4">
+                      <div className="bg-white/5 backdrop-blur-md rounded-xl p-4">
+                        <label className="block text-sm font-medium text-white mb-2">
+                          Refund Address (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={refundAddress}
+                          onChange={handleRefundAddressChange}
+                          placeholder={`Enter ${selectedSendCrypto?.symbol || 'crypto'} refund address`}
+                          className="w-full px-4 py-3 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 text-white placeholder-white/50 focus:outline-none focus:border-blue-500"
+                        />
+                        {refundAddressError && (
+                          <p className="mt-2 text-sm text-red-400">{refundAddressError}</p>
+                        )}
+                      </div>
+                      
+                      {selectedSendCrypto?.has_extra_id && (
+                        <div className="bg-white/5 backdrop-blur-md rounded-xl p-4">
+                          <label className="block text-sm font-medium text-white mb-2">
+                            Refund Extra ID (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={refundExtraId}
+                            onChange={(e) => setRefundExtraId(e.target.value)}
+                            placeholder="Enter refund extra ID if required"
+                            className="w-full px-4 py-3 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 text-white placeholder-white/50 focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {step === 4 && (
+                    <div className="bg-white/5 backdrop-blur-md rounded-xl p-6">
+                      <h3 className="text-lg font-semibold text-white mb-4">Confirm Exchange Details</h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-white/70">You Send:</span>
+                          <span className="text-white font-medium">
+                            {sendAmount} {selectedSendCrypto?.symbol.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-white/70">You Get:</span>
+                          <span className="text-white font-medium">
+                            {getAmount} {selectedGetCrypto?.symbol.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-white/70">Recipient Address:</span>
+                          <span className="text-white font-medium break-all">
+                            {recipientAddress.slice(0, 10)}...{recipientAddress.slice(-10)}
+                          </span>
+                        </div>
+                        {extraId && (
+                          <div className="flex justify-between">
+                            <span className="text-white/70">Extra ID:</span>
+                            <span className="text-white font-medium">{extraId}</span>
+                          </div>
+                        )}
+                        {refundAddress && (
+                          <div className="flex justify-between">
+                            <span className="text-white/70">Refund Address:</span>
+                            <span className="text-white font-medium break-all">
+                              {refundAddress.slice(0, 10)}...{refundAddress.slice(-10)}
+                            </span>
+                          </div>
+                        )}
+                        {refundExtraId && (
+                          <div className="flex justify-between">
+                            <span className="text-white/70">Refund Extra ID:</span>
+                            <span className="text-white font-medium">{refundExtraId}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-6">
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={termsAccepted}
+                            onChange={(e) => setTermsAccepted(e.target.checked)}
+                            className="mt-1"
+                          />
+                          <span className="text-sm text-white/70">
+                            I agree to the <Link href="/terms" className="text-blue-400 hover:text-blue-300">Terms of Service</Link> and understand that SimpleSwap does not hold deposits and cannot guarantee exchanges.
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-4 mt-4">
+                    {step > 1 && (
+                      <button
+                        onClick={handleBack}
+                        className="flex-1 h-[70px] rounded-xl font-semibold transition-all duration-300 bg-white/5 hover:bg-white/10 text-white backdrop-blur-md"
                         style={{ 
                           fontFamily: 'Poppins, Inter, sans-serif',
-                          color: '#3f5878'
+                          fontSize: 'min(4vw, 18px)',
                         }}
-                      />
-                      {minAmountError && (
-                        <div className="absolute left-0 -bottom-7 text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded-md border border-yellow-200">
-                          Min amount: {minAmountError.amount} {minAmountError.currency}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="w-full rounded-xl h-[70px] flex overflow-visible">
-                    <div 
-                      ref={getDropdownRef}
-                      className="w-[35%] h-full bg-[#edf1f7] flex items-center justify-between px-4 sm:px-6 relative cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowGetDropdown(!showGetDropdown);
-                        setShowSendDropdown(false);
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        {selectedGetCrypto && (
-                          <img 
-                            src={selectedGetCrypto.icon} 
-                            alt={selectedGetCrypto.symbol} 
-                            className="w-5 h-5 sm:w-6 sm:h-6" 
-                          />
-                        )}
-                        <span className="text-[12px] sm:text-[14px] font-semibold text-gray-900">
-                          {selectedGetCrypto ? selectedGetCrypto.symbol.toUpperCase() : 'Select'}
-                        </span>
-                      </div>
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5 text-[#3f5878]">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                      </svg>
-                      
-                      {showGetDropdown && (
-                        <div className="absolute top-[75px] left-0 w-[calc(90vw-2rem)] max-w-[calc(32rem-2rem)] sm:w-[calc(100vw-5rem)] md:w-[calc(100vw-7rem)] bg-white rounded-xl shadow-lg overflow-y-auto z-20 max-h-[50vh]">
-                          <div className="bg-white p-2 border-b">
-                            <input
-                              type="text"
-                              placeholder="Search cryptocurrency..."
-                              value={getSearchQuery}
-                              onChange={(e) => setGetSearchQuery(e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-blue-500 text-sm text-[#1a2b4b]"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                          <div className="flex flex-wrap gap-2 p-4 border-b border-gray-100">
-                            {Object.entries(cryptoCategories).map(([key, _]) => (
-                              <button
-                                key={key}
-                                className={`px-3 py-1 rounded-full text-xs ${
-                                  selectedCategory === key
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCategory(key);
-                                }}
-                              >
-                                {key.charAt(0).toUpperCase() + key.slice(1)}
-                              </button>
-                            ))}
-                          </div>
-                          <div>
-                            {filteredGetCryptos.map((crypto) => (
-                              <div
-                                key={crypto.symbol}
-                                className="flex items-center gap-2 px-4 py-3 hover:bg-[#f7f9fc] cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedGetCrypto(crypto);
-                                  setShowGetDropdown(false);
-                                  setGetSearchQuery('');
-                                }}
-                              >
-                                <img src={crypto.icon} alt={crypto.symbol} className="w-5 h-5" />
-                                <div>
-                                  <p className="text-[12px] font-semibold text-gray-900">{crypto.symbol.toUpperCase()}</p>
-                                  <p className="text-[10px] text-[#3f5878]/70">{crypto.name}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 bg-[#edf1f7] ml-[8px] flex items-center px-4 sm:px-6">
-                      <input 
-                        type="text"
-                        value={getAmount}
-                        readOnly
-                        placeholder="You Get" 
-                        className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium cursor-not-allowed" 
+                      >
+                        Back
+                      </button>
+                    )}
+                    
+                    {step < 4 ? (
+                      <button
+                        onClick={handleNext}
+                        className={`flex-1 h-[70px] rounded-xl text-white font-semibold transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc] ${
+                          isNextButtonDisabled() ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                         style={{ 
                           fontFamily: 'Poppins, Inter, sans-serif',
-                          color: '#3f5878'
+                          fontSize: 'min(4vw, 18px)',
                         }}
-                      />
-                    </div>
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleExchange}
+                        disabled={isLoading || !termsAccepted}
+                        className={`flex-1 h-[70px] rounded-xl text-white font-semibold transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc] ${
+                          (isLoading || !termsAccepted) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        style={{ 
+                          fontFamily: 'Poppins, Inter, sans-serif',
+                          fontSize: 'min(4vw, 18px)',
+                        }}
+                      >
+                        {isLoading ? 'Processing...' : 'Confirm Exchange'}
+                      </button>
+                    )}
                   </div>
-                  <Link href="/exchange" className="block">
-                    <button 
-                      className="w-full h-[70px] rounded-xl text-white font-semibold mt-4 transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc]"
-                      style={{ 
-                        fontFamily: 'Poppins, Inter, sans-serif',
-                        fontSize: 'min(4vw, 18px)',
-                        fontWeight: '600'
-                      }}
-                    >
-                      Exchange
-                    </button>
-                  </Link>
                 </div>
               </div>
             </div>

@@ -7,11 +7,13 @@ import { useRouter } from 'next/navigation';
 import { cryptoCategories } from '../../data/cryptoCategories';
 import { toast } from 'react-toastify';
 import { getExchangeRate, getAllCurrencies } from '../../lib/api/simpleswap';
+import { validateAddress } from '../../lib/utils/addressValidator';
 import { 
   UserCircleIcon, 
   ArrowRightOnRectangleIcon, 
   IdentificationIcon,
-  UsersIcon 
+  UsersIcon,
+  ExclamationCircleIcon 
 } from '@heroicons/react/24/outline';
 
 export default function Exchange() {
@@ -40,6 +42,7 @@ export default function Exchange() {
   const [cryptocurrencies, setCryptocurrencies] = useState([]);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [verificationCheckInterval, setVerificationCheckInterval] = useState(null);
+  const [addressError, setAddressError] = useState('');
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -421,6 +424,25 @@ export default function Exchange() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleAddressChange = (e) => {
+    const address = e.target.value;
+    setRecipientAddress(address);
+    
+    if (selectedGetCrypto) {
+      const validation = validateAddress(address, selectedGetCrypto.symbol);
+      setAddressError(validation.message);
+    }
+  };
+
+  const isNextButtonDisabled = () => {
+    if (step === 1) {
+      return !selectedSendCrypto || !selectedGetCrypto || !sendAmount || minAmountError;
+    } else if (step === 2) {
+      return !recipientAddress || addressError || isButtonClick;
+    }
+    return false;
   };
 
   return (
@@ -1108,13 +1130,27 @@ export default function Exchange() {
                       <label className="block text-sm text-white mb-2">
                         Enter the recipient&apos;s {selectedGetCrypto?.name} address
                       </label>
-                      <input
-                        type="text"
-                        value={recipientAddress}
-                        onChange={(e) => setRecipientAddress(e.target.value)}
-                        placeholder={`${selectedGetCrypto?.name} Address`}
-                        className="w-full bg-white/10 backdrop-blur-md p-3 rounded-lg outline-none text-white placeholder-white/50"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={recipientAddress}
+                          onChange={handleAddressChange}
+                          className={`w-full bg-white/10 backdrop-blur-md p-3 rounded-lg outline-none text-white placeholder-white/50 ${
+                            addressError ? 'border border-red-500' : 'border border-transparent'
+                          }`}
+                          placeholder={`Enter ${selectedGetCrypto?.symbol.toUpperCase()} address`}
+                        />
+                        {addressError && (
+                          <div className="absolute right-3 top-3 text-red-500">
+                            <ExclamationCircleIcon className="h-5 w-5" />
+                          </div>
+                        )}
+                      </div>
+                      {addressError && (
+                        <p className="mt-1 text-sm text-red-500 flex items-center gap-1">
+                          {addressError}
+                        </p>
+                      )}
                     </div>
                     <div className="bg-white/5 backdrop-blur-md p-4 rounded-xl">
                       <label className="block text-sm text-white mb-2">
@@ -1194,7 +1230,7 @@ export default function Exchange() {
                         className="ml-auto px-6 py-3 bg-[#0f75fc] text-white rounded-lg hover:bg-[#0f75fc]/90 transition-colors"
                         disabled={
                           (step === 1 && (!sendAmount || !selectedSendCrypto || !selectedGetCrypto)) ||
-                          (step === 2 && !recipientAddress)
+                          (step === 2 && (!recipientAddress || addressError))
                         }
                       >
                         Next

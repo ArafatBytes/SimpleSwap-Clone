@@ -124,7 +124,7 @@ const ProgressBar = ({ currentStatus }) => {
 const Header = () => {
   return (
     <div className="absolute top-0 left-0 right-0 border-b border-white/10">
-      <div className="max-w-7xl mx-auto flex justify-between items-center p-6">
+      <div className="max-w-7xl mx-auto flex justify-between items-center p-4">
         {/* Logo */}
         <div className="flex items-center space-x-2">
           <Image
@@ -140,25 +140,27 @@ const Header = () => {
         </div>
 
         {/* Back button */}
-        <Link 
-          href="/exchange" 
-          className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors group"
-        >
-          <svg
-            className="w-5 h-5 transform transition-transform group-hover:-translate-x-1"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        <div className="flex items-center space-x-2">
+          <Link 
+            href="/"
+            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors group"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          <span>Back to exchange</span>
-        </Link>
+            <svg
+              className="w-5 h-5 transform transition-transform group-hover:-translate-x-1"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            <span>Back to Home</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

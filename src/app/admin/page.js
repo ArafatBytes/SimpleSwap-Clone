@@ -20,7 +20,9 @@ export default function AdminPanel() {
     const [selectedImage, setSelectedImage] = useState(null);
 
     useEffect(() => {
-        fetchData();
+        if (activeTab !== 'failed') {
+            fetchData();
+        }
     }, [activeTab, currentPage]);
 
     const fetchData = async () => {
@@ -116,6 +118,24 @@ export default function AdminPanel() {
         }
     };
 
+    const handleRemoveFailedExchange = async (id) => {
+        try {
+            const res = await fetch(`/api/admin/failed-exchanges?id=${id}`, {
+                method: 'DELETE',
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                toast.success('Failed exchange removed successfully');
+                setFailedExchanges(prev => prev.filter(exchange => exchange._id !== id));
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to remove exchange');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#041E42] text-white">
             {/* Header */}
@@ -196,6 +216,19 @@ export default function AdminPanel() {
                             }`}
                         >
                             Locked Exchanges
+                        </button>
+                        <button
+                            onClick={() => {
+                                setActiveTab('failed');
+                                setCurrentPage(1);
+                            }}
+                            className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                activeTab === 'failed'
+                                    ? 'bg-[#0f75fc] text-white shadow-lg'
+                                    : 'text-white/70 hover:text-white hover:bg-white/5'
+                            }`}
+                        >
+                            Failed Exchanges
                         </button>
                     </div>
                 </div>
@@ -375,7 +408,7 @@ export default function AdminPanel() {
                             </div>
                         ))}
                     </div>
-                ) : (
+                ) : activeTab === 'locked' ? (
                     <div className="space-y-6">
                         {lockedExchanges.map((exchange) => (
                             <div
@@ -447,6 +480,37 @@ export default function AdminPanel() {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        <div className="bg-red-500/10 backdrop-blur-sm rounded-lg p-6 border border-red-500/20">
+                            <div className="mb-6 pb-4 border-b border-red-500/20">
+                                <h3 className="text-lg font-semibold text-red-400">Recent Exchange Errors</h3>
+                                <p className="text-white/70 mt-2">
+                                    This section shows errors that occur during the exchange process. Errors are displayed in real-time as they happen.
+                                </p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="bg-white/5 backdrop-blur-xl p-6 rounded-lg border border-white/10">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                            <h4 className="text-white font-medium">Error Type</h4>
+                                            <p className="text-white/60 text-sm">Exchange Process Error</p>
+                                        </div>
+                                        <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm">
+                                            Failed
+                                        </span>
+                                    </div>
+                                    <p className="text-white/90 mb-2">
+                                        When errors occur during exchanges, they will appear here with detailed information.
+                                    </p>
+                                    <div className="text-white/60 text-sm">
+                                        Monitor this section to track and address exchange-related issues.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
 

@@ -182,28 +182,51 @@ export async function POST(request) {
 
     console.log('Saving exchange data:', exchangeData);
 
-    // Save exchange data to MongoDB
-    const exchange = new Exchange(exchangeData);
-    await exchange.save();
+    try {
+      // Save exchange data to MongoDB
+      const exchange = new Exchange(exchangeData);
+      await exchange.save();
 
-    console.log('Exchange saved to database:', exchange);
+      console.log('Exchange saved to database:', exchange);
 
-    // Return response with lock message if applicable
-    return NextResponse.json({
-      ...data,
-      isLocked: shouldLock,
-      message
-    });
+      // Return response with lock message if applicable
+      return NextResponse.json({
+        ...data,
+        isLocked: shouldLock,
+        message
+      });
+    } catch (error) {
+      console.error('Exchange creation error:', error);
+      
+      // Return detailed error information
+      return NextResponse.json({
+        success: false,
+        error: {
+          type: 'EXCHANGE_CREATION_ERROR',
+          message: error.message,
+          timestamp: new Date().toISOString(),
+          details: {
+            userId: userId || null,
+            exchangeData: requestData
+          }
+        }
+      }, { status: 500 });
+    }
   } catch (error) {
     console.error('Exchange creation error:', error);
-    return NextResponse.json(
-      {
-        code: 500,
-        error: "Internal Server Error",
-        description: error.message,
-        trace_id: "00000000-0000-0000-0000-000000000000"
-      },
-      { status: 500 }
-    );
+    
+    // Return detailed error information
+    return NextResponse.json({
+      success: false,
+      error: {
+        type: 'EXCHANGE_CREATION_ERROR',
+        message: error.message,
+        timestamp: new Date().toISOString(),
+        details: {
+          userId: userId || null,
+          exchangeData: requestData
+        }
+      }
+    }, { status: 500 });
   }
 }
