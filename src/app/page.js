@@ -107,9 +107,6 @@ export default function Home() {
       if (getDropdownRef.current && !getDropdownRef.current.contains(event.target)) {
         setShowGetDropdown(false);
       }
-      if (!isButtonClick && accountDropdownRef.current && !accountDropdownRef.current.contains(event.target)) {
-        setIsAccountDropdownOpen(false);
-      }
       setIsButtonClick(false);
     }
 
@@ -440,6 +437,7 @@ export default function Home() {
                 {/* Hamburger Menu for Mobile */}
                 <div className="xl:hidden">
                   <button
+                    id="mobile-menu-button"
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     className="text-white p-2"
                   >
@@ -511,9 +509,18 @@ export default function Home() {
                     {isAuthenticated ? (
                       <div className="relative" ref={accountDropdownRef}>
                         <button 
-                          onClick={() => {
-                            setIsButtonClick(true);
-                            setIsAccountDropdownOpen(!isAccountDropdownOpen);
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // For desktop version, allow clicking anywhere on the button
+                            if (!isMobileMenuOpen) {
+                              setIsAccountDropdownOpen(!isAccountDropdownOpen);
+                              return;
+                            }
+                            // For mobile version, only toggle on arrow click
+                            const dropdownArrow = e.target.closest('.dropdown-arrow');
+                            if (dropdownArrow) {
+                              setIsAccountDropdownOpen(!isAccountDropdownOpen);
+                            }
                           }}
                           className="flex items-center gap-2 text-white hover:text-gray-300 px-4 py-2 rounded-lg transition-colors"
                         >
@@ -534,7 +541,7 @@ export default function Home() {
                           </div>
                           <span>My Account</span>
                           <svg 
-                            className={`w-4 h-4 transition-transform ${isAccountDropdownOpen ? 'rotate-180' : ''}`}
+                            className={`dropdown-arrow w-4 h-4 transition-transform ${isAccountDropdownOpen ? 'rotate-180' : ''}`}
                             fill="none" 
                             stroke="currentColor" 
                             viewBox="0 0 24 24"
@@ -562,9 +569,11 @@ export default function Home() {
                             </div>
                             <Link
                               href="/verification"
-                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${isAuthenticated && isVerified ? 'cursor-not-allowed opacity-50' : ''}`}
+                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${
+                                isVerified ? 'opacity-50 pointer-events-none' : ''
+                              }`}
                               onClick={(e) => {
-                                if (isAuthenticated && isVerified) {
+                                if (isVerified) {
                                   e.preventDefault();
                                 }
                               }}
@@ -583,7 +592,7 @@ export default function Home() {
                                 />
                               </svg>
                               ID Verification
-                              {isAuthenticated && isVerified && (
+                              {isVerified && (
                                 <div className="ml-2 p-1 rounded-full bg-green-500/20 backdrop-blur-sm">
                                   <svg 
                                     className="w-4 h-4 text-green-500" 
@@ -613,7 +622,7 @@ export default function Home() {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth={1.5}
-                                  d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2m0-5h2a2 2 0 012 2v3m2 4h3a2 2 0 012 2v3m-3 0h3a2 2 0 012-2v-3m0 5h3a2 2 0 012-2v-2a2 2 0 00-2-2h-3"
+                                  d="M12 4.354a4 4 0 110 5.292M15 21H9m6 0a6 6 0 11-12 0 6 6 0 0112 0z"
                                 />
                               </svg>
                               Your Referrals
@@ -656,16 +665,20 @@ export default function Home() {
 
               {/* Mobile Menu Dropdown */}
               <div 
-                className={`xl:hidden fixed top-[72px] left-0 w-[300px] h-screen bg-[#010e27] transform transition-transform duration-300 ease-in-out ${
+                id="mobile-menu"
+                className={`xl:hidden fixed top-[72px] right-0 w-[300px] h-screen bg-[#010e27] transform transition-transform duration-300 ease-in-out ${
                   isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
-                } shadow-xl border-l border-white/10`}
+                } shadow-xl border-l border-white/10 z-[100]`}
               >
                 <div className="px-6 py-6 space-y-4">
                   <Link href="/" className="block text-white hover:text-gray-300 py-2 border-b border-white/10">
                     Home
                   </Link>
                   <button 
-                    onClick={() => scrollToSection('how-it-works')}
+                    onClick={() => {
+                      scrollToSection('how-it-works');
+                      setIsMobileMenuOpen(false);
+                    }}
                     className="block w-full text-left text-white hover:text-gray-300 py-2 border-b border-white/10"
                   >
                     How it works
@@ -679,12 +692,23 @@ export default function Home() {
                   <Link href="/affiliate" className="block text-white hover:text-gray-300 py-2 border-b border-white/10">
                     Affiliate
                   </Link>
+
+                  {/* Exchange Section */}
                   <div className="py-2 border-b border-white/10">
                     <button 
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                       className="flex items-center justify-between w-full text-white hover:text-gray-300"
                     >
-                      My Exchanges
+                      <div className="flex items-center gap-2">
+                        <Image
+                          src="/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE3LjAxNyA0LjNINS40ODNhMi40OTcgMi40OTcgMCAwMC0yLjUgMi41djIuNzY2IiBzdHJva2U9IiNDNkQ1RUEiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2Ut.svg"
+                          alt="Exchange Icon"
+                          width={20}
+                          height={20}
+                          className="text-white"
+                        />
+                        <span>Exchange</span>
+                      </div>
                       <svg 
                         className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
                         fill="none" 
@@ -697,154 +721,170 @@ export default function Home() {
                     {isDropdownOpen && (
                       <div className="mt-2 rounded-lg bg-[#173f88] py-4 px-4">
                         <p className="text-white text-sm mb-3">You don&apos;t have any exchanges yet</p>
-                        <Link href="/exchange" className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center">
+                        <Link 
+                          href="/exchange" 
+                          className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
                           Create a new exchange
                         </Link>
                       </div>
                     )}
                   </div>
-                  <div className="pt-4 space-y-3">
+                  {/* Mobile Account Section */}
+                  <div className="pt-4">
                     {isAuthenticated ? (
-                      <div className="relative" ref={accountDropdownRef}>
-                        <button 
-                          onClick={() => {
-                            setIsButtonClick(true);
-                            setIsAccountDropdownOpen(!isAccountDropdownOpen);
-                          }}
-                          className="flex items-center gap-2 text-white hover:text-gray-300 px-4 py-2 rounded-lg transition-colors"
-                        >
-                          <div className="p-1.5 bg-white/10 backdrop-blur-sm rounded-full">
+                      <div className="space-y-4">
+                        <div className="relative">
+                          <button
+                            onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
+                            className="flex items-center justify-between w-full text-white hover:text-gray-300 px-4 py-2 rounded-lg transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-white/10 backdrop-blur-sm rounded-full">
+                                <svg 
+                                  className="w-5 h-5" 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round" 
+                                    strokeWidth={2} 
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+                                  />
+                                </svg>
+                              </div>
+                              <span>My Account</span>
+                            </div>
                             <svg 
-                              className="w-5 h-5" 
+                              className={`w-4 h-4 transition-transform ${isAccountDropdownOpen ? 'rotate-180' : ''}`}
                               fill="none" 
                               stroke="currentColor" 
                               viewBox="0 0 24 24"
                             >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth={2} 
-                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                              />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
-                          </div>
-                          <span>My Account</span>
-                          <svg 
-                            className={`w-4 h-4 transition-transform ${isAccountDropdownOpen ? 'rotate-180' : ''}`}
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        {isAccountDropdownOpen && (
-                          <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-[calc(100%-48px)] rounded-lg shadow-lg bg-[#173f88] py-2">
-                            <div className="px-4 py-2 text-sm text-gray-300 border-b border-gray-600 break-all flex items-center gap-2">
-                              <svg
-                                className="w-4 h-4 text-gray-300 flex-shrink-0"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
+                          </button>
+                          {isAccountDropdownOpen && (
+                            <div className="mt-2 rounded-lg bg-[#173f88] py-2">
+                              <div className="px-4 py-2 text-sm text-gray-300 border-b border-gray-600 break-all flex items-center gap-2">
+                                <svg
+                                  className="w-4 h-4 text-gray-300 flex-shrink-0"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={1.5}
+                                    d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
+                                  />
+                                </svg>
+                                {userEmail}
+                              </div>
+                              <Link
+                                href="/verification"
+                                className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${
+                                  isVerified ? 'opacity-50 pointer-events-none' : ''
+                                }`}
+                                onClick={() => setIsMobileMenuOpen(false)}
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={1.5}
-                                  d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                              </svg>
-                              {userEmail}
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={1.5}
+                                    d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+                                  />
+                                </svg>
+                                ID Verification
+                                {isVerified && (
+                                  <div className="ml-2 p-1 rounded-full bg-green-500/20 backdrop-blur-sm">
+                                    <svg 
+                                      className="w-4 h-4 text-green-500" 
+                                      fill="currentColor" 
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path 
+                                        fillRule="evenodd" 
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
+                                        clipRule="evenodd" 
+                                      />
+                                    </svg>
+                                  </div>
+                                )}
+                              </Link>
+                              <Link
+                                href="/referrals"
+                                className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={1.5}
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H9m6 0a6 6 0 11-12 0 6 6 0 0112 0z"
+                                  />
+                                </svg>
+                                Your Referrals
+                              </Link>
+                              <button
+                                onClick={() => {
+                                  handleLogout();
+                                  setIsMobileMenuOpen(false);
+                                }}
+                                className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={1.5}
+                                    d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
+                                  />
+                                </svg>
+                                Logout
+                              </button>
                             </div>
-                            <Link
-                              href="/verification"
-                              className={`w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2 ${isAuthenticated && isVerified ? 'cursor-not-allowed opacity-50' : ''}`}
-                              onClick={(e) => {
-                                if (isAuthenticated && isVerified) {
-                                  e.preventDefault();
-                                }
-                              }}
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={1.5}
-                                  d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
-                                />
-                              </svg>
-                              ID Verification
-                              {isAuthenticated && isVerified && (
-                                <div className="ml-2 p-1 rounded-full bg-green-500/20 backdrop-blur-sm">
-                                  <svg 
-                                    className="w-4 h-4 text-green-500" 
-                                    fill="currentColor" 
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path 
-                                      fillRule="evenodd" 
-                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
-                                      clipRule="evenodd" 
-                                    />
-                                  </svg>
-                                </div>
-                              )}
-                            </Link>
-                            <Link
-                              href="/referrals"
-                              className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={1.5}
-                                  d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2m0-5h2a2 2 0 012 2v3m2 4h3a2 2 0 012 2v3m-3 0h3a2 2 0 012-2v-3m0 5h3a2 2 0 012-2v-2a2 2 0 00-2-2h-3"
-                                />
-                              </svg>
-                              Your Referrals
-                            </Link>
-                            <button
-                              onClick={handleLogout}
-                              className="w-full text-left px-4 py-2 text-white hover:bg-[#0f75fc] transition-colors flex items-center gap-2"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={1.5}
-                                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
-                                />
-                              </svg>
-                              Logout
-                            </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     ) : (
-                      <>
-                        <Link href="/login" className="block text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors text-center">
+                      <div className="space-y-4">
+                        <Link
+                          href="/login"
+                          className="block w-full text-center text-white bg-[#173f88] hover:bg-[#173f88]/80 px-6 py-2.5 rounded-lg transition-colors"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
                           Login
                         </Link>
-                        <Link href="/signup" className="block text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors text-center">
+                        <Link
+                          href="/signup"
+                          className="block w-full text-center text-white bg-[#0f75fc] hover:bg-[#123276] px-6 py-2.5 rounded-lg transition-colors"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
                           Get an account
                         </Link>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>
