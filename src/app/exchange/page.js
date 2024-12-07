@@ -43,6 +43,8 @@ export default function Exchange() {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [verificationCheckInterval, setVerificationCheckInterval] = useState(null);
   const [addressError, setAddressError] = useState('');
+  const [isCalculating, setIsCalculating] = useState(false);
+  const exchangeRateTimer = useRef(null);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -262,6 +264,63 @@ export default function Exchange() {
     setIsMobileMenuOpen(false);
   };
 
+  const calculateExchangeRate = async (params = {}) => {
+    const {
+      amount = sendAmount,
+      fromCrypto = selectedSendCrypto,
+      toCrypto = selectedGetCrypto
+    } = params;
+    
+    if (!fromCrypto || !toCrypto || !amount || parseFloat(amount) <= 0) {
+      setIsCalculating(false);
+      return;
+    }
+
+    try {
+      setIsCalculating(true);
+      const result = await getExchangeRate(
+        fromCrypto.symbol,
+        toCrypto.symbol,
+        amount
+      );
+      
+      if (result.error === 'MIN_AMOUNT' && result.minAmount) {
+        setGetAmount('');
+        setMinAmountError({
+          amount: result.minAmount,
+          currency: result.currency
+        });
+      } else if (result.rate) {
+        const formattedRate = parseFloat(result.rate).toFixed(8);
+        setGetAmount(formattedRate);
+        setMinAmountError(null);
+      } else {
+        setGetAmount('');
+        setMinAmountError(null);
+      }
+    } catch (error) {
+      console.error('Exchange rate error:', error);
+      setGetAmount('');
+      setMinAmountError(null);
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+  const debouncedCalculateRate = (immediate = false, params = {}) => {
+    if (exchangeRateTimer.current) {
+      clearTimeout(exchangeRateTimer.current);
+    }
+
+    if (immediate) {
+      calculateExchangeRate(params);
+    } else {
+      exchangeRateTimer.current = setTimeout(() => {
+        calculateExchangeRate(params);
+      }, 1000); // 1 second delay
+    }
+  };
+
   const handleNumberInput = async (value, setter) => {
     // Allow empty string
     if (value === '') {
@@ -277,46 +336,9 @@ export default function Exchange() {
     if (/^\d*\.?\d*$/.test(value)) {
       setter(value);
       
-      // If updating send amount, calculate and update get amount
-      if (setter === setSendAmount && parseFloat(value) > 0) {
-        try {
-          const fromSymbol = selectedSendCrypto.symbol;
-          const toSymbol = selectedGetCrypto.symbol;
-          
-          console.log('Requesting exchange rate for:', {
-            fromSymbol,
-            toSymbol,
-            value
-          });
-          
-          const result = await getExchangeRate(
-            fromSymbol,
-            toSymbol,
-            value
-          );
-          
-          console.log('Received exchange rate:', result);
-          
-          if (result.error === 'MIN_AMOUNT' && result.minAmount) {
-            setGetAmount('');
-            setMinAmountError({
-              amount: result.minAmount,
-              currency: result.currency
-            });
-          } else if (result.rate) {
-            const formattedRate = parseFloat(result.rate).toFixed(8);
-            console.log('Setting formatted rate:', formattedRate);
-            setGetAmount(formattedRate);
-            setMinAmountError(null);
-          } else {
-            setGetAmount('');
-            setMinAmountError(null);
-          }
-        } catch (error) {
-          console.error('Exchange rate error:', error);
-          setGetAmount('');
-          setMinAmountError(null);
-        }
+      // If updating send amount, trigger debounced calculation with current value
+      if (setter === setSendAmount) {
+        debouncedCalculateRate(false, { amount: value });
       }
     }
   };
@@ -975,6 +997,11 @@ export default function Exchange() {
                                     setSelectedSendCrypto(crypto);
                                     setShowSendDropdown(false);
                                     setSendSearchQuery('');
+                                    debouncedCalculateRate(true, {
+                                      amount: sendAmount,
+                                      fromCrypto: crypto,
+                                      toCrypto: selectedGetCrypto
+                                    });
                                   }}
                                 >
                                   <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10">
@@ -1005,11 +1032,19 @@ export default function Exchange() {
                           value={sendAmount}
                           onChange={(e) => handleNumberInput(e.target.value, setSendAmount)}
                           placeholder="You Send" 
-                          className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium text-white placeholder-white/50"
+                          className="w-full bg-transparent outline-none text-[12px] sm:text-[14px] font-medium text-white placeholder-white/50" 
+                          style={{ 
+                            fontFamily: 'Poppins, Inter, sans-serif'
+                          }}
                         />
                         {minAmountError && (
-                          <div className="absolute left-0 -bottom-7 text-xs text-yellow-400 bg-white/5 px-2 py-1 rounded-md border border-yellow-400/20">
+                          <div className="absolute left-0 -bottom-7 text-xs text-yellow-300 bg-yellow-500/10 backdrop-blur-md px-2 py-1 rounded-lg z-[9999]">
                             Min amount: {minAmountError.amount} {minAmountError.currency}
+                          </div>
+                        )}
+                        {isCalculating && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white/30"></div>
                           </div>
                         )}
                       </div>
@@ -1087,6 +1122,11 @@ export default function Exchange() {
                                     setSelectedGetCrypto(crypto);
                                     setShowGetDropdown(false);
                                     setGetSearchQuery('');
+                                    debouncedCalculateRate(true, {
+                                      amount: sendAmount,
+                                      fromCrypto: selectedSendCrypto,
+                                      toCrypto: crypto
+                                    });
                                   }}
                                 >
                                   <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10">

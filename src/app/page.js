@@ -44,12 +44,13 @@ export default function Home() {
   const [refundAddress, setRefundAddress] = useState('');
   const [refundAddressError, setRefundAddressError] = useState('');
   const [refundExtraId, setRefundExtraId] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
   const [exchangeId, setExchangeId] = useState(null);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
   const accountDropdownRef = useRef(null);
+  const exchangeRateTimer = useRef(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -179,47 +180,69 @@ export default function Home() {
     if (/^\d*\.?\d*$/.test(value)) {
       setter(value);
       
-      // If updating send amount, calculate and update get amount
-      if (setter === setSendAmount && parseFloat(value) > 0) {
-        try {
-          const fromSymbol = selectedSendCrypto.symbol;
-          const toSymbol = selectedGetCrypto.symbol;
-          
-          console.log('Requesting exchange rate for:', {
-            fromSymbol,
-            toSymbol,
-            value
-          });
-          
-          const result = await getExchangeRate(
-            fromSymbol,
-            toSymbol,
-            value
-          );
-          
-          console.log('Received exchange rate:', result);
-          
-          if (result.error === 'MIN_AMOUNT' && result.minAmount) {
-            setGetAmount('');
-            setMinAmountError({
-              amount: result.minAmount,
-              currency: result.currency
-            });
-          } else if (result.rate) {
-            const formattedRate = parseFloat(result.rate).toFixed(8);
-            console.log('Setting formatted rate:', formattedRate);
-            setGetAmount(formattedRate);
-            setMinAmountError(null);
-          } else {
-            setGetAmount('');
-            setMinAmountError(null);
-          }
-        } catch (error) {
-          console.error('Exchange rate error:', error);
-          setGetAmount('');
-          setMinAmountError(null);
-        }
+      // If updating send amount, trigger debounced calculation with current value
+      if (setter === setSendAmount) {
+        debouncedCalculateRate(false, { amount: value });
       }
+    }
+  };
+
+  // Function to calculate exchange rate with loading state
+  const calculateExchangeRate = async (params = {}) => {
+    const {
+      amount = sendAmount,
+      fromCrypto = selectedSendCrypto,
+      toCrypto = selectedGetCrypto
+    } = params;
+    
+    if (!fromCrypto || !toCrypto || !amount || parseFloat(amount) <= 0) {
+      setIsCalculating(false);
+      return;
+    }
+
+    try {
+      setIsCalculating(true);
+      const result = await getExchangeRate(
+        fromCrypto.symbol,
+        toCrypto.symbol,
+        amount
+      );
+      
+      if (result.error === 'MIN_AMOUNT' && result.minAmount) {
+        setGetAmount('');
+        setMinAmountError({
+          amount: result.minAmount,
+          currency: result.currency
+        });
+      } else if (result.rate) {
+        const formattedRate = parseFloat(result.rate).toFixed(8);
+        setGetAmount(formattedRate);
+        setMinAmountError(null);
+      } else {
+        setGetAmount('');
+        setMinAmountError(null);
+      }
+    } catch (error) {
+      console.error('Exchange rate error:', error);
+      setGetAmount('');
+      setMinAmountError(null);
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+  // Debounced function to handle exchange rate calculation
+  const debouncedCalculateRate = (immediate = false, params = {}) => {
+    if (exchangeRateTimer.current) {
+      clearTimeout(exchangeRateTimer.current);
+    }
+
+    if (immediate) {
+      calculateExchangeRate(params);
+    } else {
+      exchangeRateTimer.current = setTimeout(() => {
+        calculateExchangeRate(params);
+      }, 1000); // 1 second delay
     }
   };
 
@@ -280,7 +303,11 @@ export default function Home() {
       }
 
       setStep(2);
-    } else if (step === 2 && recipientAddress) {
+    } else if (step === 2) {
+      if (!recipientAddress || addressError) {
+        toast.error('Please enter a valid recipient address');
+        return;
+      }
       setStep(3);
     } else if (step === 3) {
       setStep(4);
@@ -357,7 +384,7 @@ export default function Home() {
     } else if (step === 3) {
       return refundAddress && refundAddressError; // Only block if refund address is provided and invalid
     } else if (step === 4) {
-      return !termsAccepted;
+      return false;
     }
     return false;
   };
@@ -629,7 +656,7 @@ export default function Home() {
 
               {/* Mobile Menu Dropdown */}
               <div 
-                className={`xl:hidden fixed top-[72px] right-0 w-[300px] h-screen bg-[#010e27] transform transition-transform duration-300 ease-in-out ${
+                className={`xl:hidden fixed top-[72px] left-0 w-[300px] h-screen bg-[#010e27] transform transition-transform duration-300 ease-in-out ${
                   isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
                 } shadow-xl border-l border-white/10`}
               >
@@ -852,21 +879,68 @@ export default function Home() {
                   }}>Crypto Exchange</h2>
                 </div>
                 
-                <div className="flex justify-between items-center mt-8 mb-6">
-                  {[1, 2, 3, 4].map((stepNumber) => (
-                    <div key={stepNumber} className="flex items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        step >= stepNumber ? 'bg-blue-500 text-white' : 'bg-white/10 text-white/50'
-                      }`}>
-                        {stepNumber}
+                <div className="mt-8 mb-12 relative">
+                  {/* Progress line */}
+                  <div className="absolute top-5 left-0 w-full h-[2px] bg-white/5">
+                    <div 
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-in-out"
+                      style={{ width: `${((step - 1) / 3) * 100}%` }}
+                    />
+                  </div>
+
+                  {/* Steps */}
+                  <div className="flex justify-between relative">
+                    {[
+                      { number: 1, title: 'Amount', description: 'Select currencies and amount' },
+                      { number: 2, title: 'Address', description: 'Enter recipient address' },
+                      { number: 3, title: 'Refund', description: 'Set refund address' },
+                      { number: 4, title: 'Confirm', description: 'Review exchange details' }
+                    ].map((stepItem) => (
+                      <div key={stepItem.number} className="flex flex-col items-center">
+                        <div 
+                          className={`w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-300 ${
+                            step >= stepItem.number 
+                              ? 'bg-gradient-to-r from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30' 
+                              : 'bg-white/5 border border-white/10'
+                          }`}
+                        >
+                          {step > stepItem.number ? (
+                            <svg 
+                              className="w-6 h-6 text-white" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                strokeWidth={2} 
+                                d="M5 13l4 4L19 7" 
+                              />
+                            </svg>
+                          ) : (
+                            <span className={`text-lg font-semibold ${
+                              step >= stepItem.number ? 'text-white' : 'text-white/50'
+                            }`}>
+                              {stepItem.number}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-4 text-center">
+                          <div className={`text-sm font-medium transition-colors duration-300 ${
+                            step >= stepItem.number ? 'text-white' : 'text-white/50'
+                          }`}>
+                            {stepItem.title}
+                          </div>
+                          <div className={`text-xs mt-1 transition-colors duration-300 ${
+                            step >= stepItem.number ? 'text-white/70' : 'text-white/30'
+                          }`}>
+                            {stepItem.description}
+                          </div>
+                        </div>
                       </div>
-                      {stepNumber < 4 && (
-                        <div className={`w-full h-0.5 ${
-                          step > stepNumber ? 'bg-blue-500' : 'bg-white/10'
-                        }`} />
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
 
                 <div className="mt-8 flex flex-col gap-[8px]">
@@ -936,6 +1010,12 @@ export default function Home() {
                                     className="flex items-center gap-2 px-4 py-3 hover:bg-white/20 cursor-pointer"
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      // Calculate immediately when changing crypto with current values
+                                      debouncedCalculateRate(true, {
+                                        amount: sendAmount,
+                                        fromCrypto: crypto,
+                                        toCrypto: selectedGetCrypto
+                                      });
                                       setSelectedSendCrypto(crypto);
                                       setShowSendDropdown(false);
                                       setSendSearchQuery('');
@@ -963,12 +1043,17 @@ export default function Home() {
                               fontFamily: 'Poppins, Inter, sans-serif'
                             }}
                           />
-                          {minAmountError && (
-                            <div className="absolute left-0 -bottom-7 text-xs text-yellow-300 bg-yellow-500/10 backdrop-blur-md px-2 py-1 rounded-md border border-yellow-500/20">
-                              Min amount: {minAmountError.amount} {minAmountError.currency}
-                            </div>
-                          )}
                         </div>
+                        {minAmountError && (
+                          <div className="absolute left-[calc(35%+16px)] top-[70px] text-xs text-yellow-300 bg-yellow-500/10 backdrop-blur-md px-2 py-1 rounded-lg z-[9999]">
+                            Min amount: {minAmountError.amount} {minAmountError.currency}
+                          </div>
+                        )}
+                        {isCalculating && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white/30"></div>
+                          </div>
+                        )}
                       </div>
                       <div className="w-full rounded-xl h-[70px] flex overflow-visible">
                         <div 
@@ -1034,6 +1119,12 @@ export default function Home() {
                                     className="flex items-center gap-2 px-4 py-3 hover:bg-white/20 cursor-pointer"
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      // Calculate immediately when changing crypto with current values
+                                      debouncedCalculateRate(true, {
+                                        amount: sendAmount,
+                                        fromCrypto: selectedSendCrypto,
+                                        toCrypto: crypto
+                                      });
                                       setSelectedGetCrypto(crypto);
                                       setShowGetDropdown(false);
                                       setGetSearchQuery('');
@@ -1182,20 +1273,6 @@ export default function Home() {
                           </div>
                         )}
                       </div>
-
-                      <div className="mt-6">
-                        <label className="flex items-start gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={termsAccepted}
-                            onChange={(e) => setTermsAccepted(e.target.checked)}
-                            className="mt-1"
-                          />
-                          <span className="text-sm text-white/70">
-                            I agree to the <Link href="/terms" className="text-blue-400 hover:text-blue-300">Terms of Service</Link> and understand that SimpleSwap does not hold deposits and cannot guarantee exchanges.
-                          </span>
-                        </label>
-                      </div>
                     </div>
                   )}
 
@@ -1229,9 +1306,9 @@ export default function Home() {
                     ) : (
                       <button
                         onClick={handleExchange}
-                        disabled={isLoading || !termsAccepted}
+                        disabled={isLoading}
                         className={`flex-1 h-[70px] rounded-xl text-white font-semibold transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc] ${
-                          (isLoading || !termsAccepted) ? 'opacity-50 cursor-not-allowed' : ''
+                          isLoading ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
                         style={{ 
                           fontFamily: 'Poppins, Inter, sans-serif',
