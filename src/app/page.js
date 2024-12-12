@@ -44,7 +44,8 @@ export default function Home() {
   const [refundAddress, setRefundAddress] = useState('');
   const [refundAddressError, setRefundAddressError] = useState('');
   const [refundExtraId, setRefundExtraId] = useState('');
-  const [exchangeId, setExchangeId] = useState(null);
+  const [exchangeData, setExchangeData] = useState(null);
+  const [exchangeStatus, setExchangeStatus] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
   const sendDropdownRef = useRef(null);
@@ -308,6 +309,8 @@ export default function Home() {
       setStep(3);
     } else if (step === 3) {
       setStep(4);
+    } else if (step === 4) {
+      setStep(5);
     }
   };
 
@@ -361,7 +364,8 @@ export default function Home() {
 
       if (response.ok) {
         toast.success('Exchange initiated successfully!');
-        router.push(`/payment?currency_from=${data.currency_from}&address_from=${data.address_from}&amount=${sendAmount}&exchange_id=${data.id}`);
+        setExchangeData(data);
+        setStep(5); // Move to payment step instead of redirecting
       } else {
         throw new Error(data.message || 'Failed to create exchange');
       }
@@ -382,20 +386,22 @@ export default function Home() {
       return refundAddress && refundAddressError; // Only block if refund address is provided and invalid
     } else if (step === 4) {
       return false;
+    } else if (step === 5) {
+      return false;
     }
     return false;
   };
 
   // Function to handle address validation
-  const validateRecipientAddress = async (address) => {
-    if (!selectedGetCrypto) return;
-    const validation = validateAddress(address, selectedGetCrypto.symbol);
-    if (!validation.isValid) {
+  const handleAddressChange = (e) => {
+    const address = e.target.value;
+    setRecipientAddress(address);
+    
+    if (selectedGetCrypto && address) {
+      const validation = validateAddress(address, selectedGetCrypto.symbol);
       setAddressError(validation.message);
-      return false;
     } else {
       setAddressError('');
-      return true;
     }
   };
 
@@ -411,6 +417,53 @@ export default function Home() {
       setRefundAddressError('');
     }
   };
+
+  useEffect(() => {
+    if (!exchangeData?.id) {
+      return;
+    }
+
+    const fetchStatus = async () => {
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_SIMPLESWAP_API_KEY;
+        const response = await fetch(
+          `https://api.simpleswap.io/get_exchange?api_key=${apiKey}&id=${exchangeData.id}`,
+          {
+            headers: {
+              'accept': 'application/json'
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch exchange status');
+        }
+
+        const data = await response.json();
+        setExchangeStatus(data);
+
+        console.log(exchangeData.id,data.status);
+
+        // Show toast for completed or error states
+        if (data.status === 'finished') {
+          toast.success('Exchange completed successfully!');
+        } else if (['failed', 'refunded', 'expired'].includes(data.status)) {
+          toast.error(`Exchange ${data.status}`);
+        }
+      } catch (error) {
+        console.error('Error fetching exchange status:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchStatus();
+
+    // Set up polling every 10 seconds
+    const intervalId = setInterval(fetchStatus, 10000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
+  }, [exchangeData?.id]);
 
   return (
     <div className="min-h-screen relative" style={{ backgroundColor: "#062763" }}>
@@ -486,6 +539,7 @@ export default function Home() {
                           height={20}
                           className="text-white"
                         />
+                        <span>Exchange</span>
                         <svg 
                           className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
                           fill="none" 
@@ -924,7 +978,7 @@ export default function Home() {
                   <div className="absolute top-5 left-0 w-full h-[2px] bg-white/5">
                     <div 
                       className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-in-out"
-                      style={{ width: `${((step - 1) / 3) * 100}%` }}
+                      style={{ width: `${((step - 1) / 4) * 100}%` }}
                     />
                   </div>
 
@@ -934,7 +988,8 @@ export default function Home() {
                       { number: 1, title: 'Amount', description: 'Select currencies and amount' },
                       { number: 2, title: 'Address', description: 'Enter recipient address' },
                       { number: 3, title: 'Refund', description: 'Set refund address' },
-                      { number: 4, title: 'Confirm', description: 'Review exchange details' }
+                      { number: 4, title: 'Confirm', description: 'Review exchange details' },
+                      { number: 5, title: 'Payment', description: 'Complete your payment' }
                     ].map((stepItem) => (
                       <div key={stepItem.number} className="flex flex-col items-center">
                         <div 
@@ -1199,23 +1254,27 @@ export default function Home() {
                   
                   {step === 2 && (
                     <div className="space-y-4">
-                      <div className="bg-white/5 backdrop-blur-md rounded-xl p-4">
-                        <label className="block text-sm font-medium text-white mb-2">
-                          {selectedGetCrypto?.symbol.toUpperCase()} Recipient Address
+                      <div>
+                        <label htmlFor="recipientAddress" className="block text-sm font-medium text-white mb-2">
+                          Recipient {selectedGetCrypto?.symbol.toUpperCase()} Address
                         </label>
-                        <input
-                          type="text"
-                          value={recipientAddress}
-                          onChange={(e) => {
-                            setRecipientAddress(e.target.value);
-                            validateRecipientAddress(e.target.value);
-                          }}
-                          className="w-full bg-white/5 backdrop-blur-md rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-white/10"
-                          placeholder={`Enter your ${selectedGetCrypto?.symbol.toUpperCase()} address`}
-                        />
-                        {addressError && (
-                          <p className="mt-2 text-red-400 text-xs">{addressError}</p>
-                        )}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            id="recipientAddress"
+                            value={recipientAddress}
+                            onChange={handleAddressChange}
+                            className={`w-full p-4 rounded-lg bg-white/10 border ${
+                              addressError ? 'border-red-500' : 'border-white/20'
+                            } text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                            placeholder={`Enter your ${selectedGetCrypto?.symbol.toUpperCase()} address`}
+                          />
+                          {addressError && (
+                            <p className="mt-2 text-sm text-red-500">
+                              {addressError}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       
                       {selectedGetCrypto?.has_extra_id && (
@@ -1312,12 +1371,123 @@ export default function Home() {
                             <span className="text-white font-medium">{refundExtraId}</span>
                           </div>
                         )}
+                        <div className="mt-6">
+                          <button
+                            onClick={handleExchange}
+                            disabled={isLoading}
+                            className={`w-full h-[50px] rounded-xl text-white font-semibold transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc] ${
+                              isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            {isLoading ? 'Creating Exchange...' : 'Create Exchange'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
 
+                  {step === 5 && exchangeData && (
+                    <div className="space-y-6">
+                      <div className="text-center">
+                        <p className="text-lg mb-2 text-white">Please send</p>
+                        <p className="text-4xl font-bold text-green-400 mb-2">{sendAmount} {selectedSendCrypto?.symbol.toUpperCase()}</p>
+                        <p className="text-sm text-gray-400">to complete your exchange</p>
+                      </div>
+
+                      <div className="bg-[#0B1426]/80 backdrop-blur-sm p-6 rounded-lg border border-blue-900/50">
+                        <div className="flex flex-col gap-4">
+                          <div className="w-full space-y-4">
+                            <div className="flex items-center justify-between bg-white/5 backdrop-blur-sm p-4 rounded-lg">
+                              <div className="break-all text-white text-sm">{exchangeData?.address_from || 'Loading address...'}</div>
+                              <button
+                                onClick={() => {
+                                  if (exchangeData?.address_from) {
+                                    navigator.clipboard.writeText(exchangeData.address_from);
+                                    toast.success('Address copied to clipboard!');
+                                  }
+                                }}
+                                className="ml-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
+                              >
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                </svg>
+                              </button>
+                            </div>
+
+                            {/* Exchange Details */}
+                            <div className="bg-white/5 backdrop-blur-sm p-4 rounded-lg space-y-3">
+                              <div className="flex justify-between items-center">
+                                <span className="text-white/70">Status</span>
+                                <span className="text-white font-medium">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800`}>
+                                    {exchangeStatus?.status}
+                                  </span>
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-white/70">Payment Wallet Address</span>
+                                <span className="text-white font-medium">{exchangeData?.address_from}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-white/70">You Send</span>
+                                <span className="text-white font-medium">{sendAmount} {selectedSendCrypto?.symbol.toUpperCase()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-white/70">You Get</span>
+                                <span className="text-white font-medium">{getAmount} {selectedGetCrypto?.symbol.toUpperCase()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-white/70">Recipient Address</span>
+                                <span className="text-white font-medium break-all">
+                                  {recipientAddress.slice(0, 10)}...{recipientAddress.slice(-10)}
+                                </span>
+                              </div>
+                              {extraId && (
+                                <div className="flex justify-between">
+                                  <span className="text-white/70">Extra ID</span>
+                                  <span className="text-white font-medium">{extraId}</span>
+                                </div>
+                              )}
+                              {refundAddress && (
+                                <div className="flex justify-between">
+                                  <span className="text-white/70">Refund Address</span>
+                                  <span className="text-white font-medium break-all">
+                                    {refundAddress.slice(0, 10)}...{refundAddress.slice(-10)}
+                                  </span>
+                                </div>
+                              )}
+                              {refundExtraId && (
+                                <div className="flex justify-between">
+                                  <span className="text-white/70">Refund Extra ID</span>
+                                  <span className="text-white font-medium">{refundExtraId}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Warning Message */}
+                            <div className="bg-yellow-500/10 backdrop-blur-sm p-4 rounded-lg">
+                              <div className="flex items-start gap-3">
+                                <svg className="w-6 h-6 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <div>
+                                  <p className="text-yellow-500 font-medium">Important:</p>
+                                  <ul className="text-yellow-500/80 text-sm mt-1 list-disc list-inside space-y-1">
+                                    <li>Send only {selectedSendCrypto?.symbol.toUpperCase()} to this address</li>
+                                    <li>Minimum amount: {sendAmount} {selectedSendCrypto?.symbol.toUpperCase()}</li>
+                                    <li>Send only one transaction</li>
+                                    <li>Your {selectedGetCrypto?.symbol.toUpperCase()} will be sent to: {recipientAddress.slice(0, 10)}...{recipientAddress.slice(-10)}</li>
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex gap-4 mt-4">
-                    {step > 1 && (
+                    {step > 1 && step !== 5 && (
                       <button
                         onClick={handleBack}
                         className="flex-1 h-[70px] rounded-xl font-semibold transition-all duration-300 bg-white/5 hover:bg-white/10 text-white backdrop-blur-md"
@@ -1330,7 +1500,7 @@ export default function Home() {
                       </button>
                     )}
                     
-                    {step < 4 ? (
+                    {step < 4 && (
                       <button
                         onClick={handleNext}
                         className={`flex-1 h-[70px] rounded-xl text-white font-semibold transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc] ${
@@ -1342,20 +1512,6 @@ export default function Home() {
                         }}
                       >
                         Next
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleExchange}
-                        disabled={isLoading}
-                        className={`flex-1 h-[70px] rounded-xl text-white font-semibold transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc] ${
-                          isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                        style={{ 
-                          fontFamily: 'Poppins, Inter, sans-serif',
-                          fontSize: 'min(4vw, 18px)',
-                        }}
-                      >
-                        {isLoading ? 'Processing...' : 'Confirm Exchange'}
                       </button>
                     )}
                   </div>
@@ -1406,24 +1562,6 @@ export default function Home() {
           <div className="flex justify-between items-center">
             <div className="max-w-[60%]">
               <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
-                24/7 support
-              </p>
-              <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
-                You won&apos;t be left alone
-              </p>
-              <p className="text-[14px] xl:text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
-                Our support team is easy to reach and ready to answer your questions.
-              </p>
-            </div>
-            <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
-              <img src="/picture3-3c002d66e84372393183095df5cb4fb7.png" alt="24/7 Support" className="w-24 xl:w-32 h-24 xl:h-32" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
-          <div className="flex justify-between items-center">
-            <div className="max-w-[60%]">
-              <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
                 Safety
               </p>
               <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
@@ -1435,6 +1573,24 @@ export default function Home() {
             </div>
             <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
               <img src="/picture4-9dd3430e0f4506b07e22b35c676f5322.png" alt="Safety" className="w-24 xl:w-32 h-24 xl:h-32" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-[#0038c7] bg-opacity-20 rounded-[30px] p-8 sm:p-12 sm:h-[350px] xl:h-[300px] h-auto relative">
+          <div className="flex justify-between items-center">
+            <div className="max-w-[60%]">
+              <p className="text-[14px] font-semibold" style={{ color: '#859ab5', paddingLeft: '8px' }}>
+                24/7 support
+              </p>
+              <p className="text-[20px] xl:text-[24px] font-semibold text-white mt-4" style={{ paddingLeft: '8px' }}>
+                You won&apos;t be left alone
+              </p>
+              <p className="text-[14px] xl:text-[16px] mt-2" style={{ color: '#c6d5ea', paddingLeft: '8px' }}>
+                Our support team is easy to reach and ready to answer your questions.
+              </p>
+            </div>
+            <div className="absolute right-8 xl:right-12 top-1/2 transform -translate-y-1/2">
+              <img src="/picture3-3c002d66e84372393183095df5cb4fb7.png" alt="24/7 Support" className="w-24 xl:w-32 h-24 xl:h-32" />
             </div>
           </div>
         </div>
@@ -1480,7 +1636,7 @@ export default function Home() {
         </div>
       </div>
       <div className="w-full" style={{ backgroundColor: '#010e27' }}>
-        <div className="max-w-[1200px] mx-auto py-40">
+        <div className="max-w-[1200px] mx-auto pt-60 pb-40">
         </div>
         <div className="w-full" style={{ backgroundColor: '#010c22' }}>
           <div className="max-w-[1200px] mx-auto py-8">

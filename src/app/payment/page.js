@@ -74,7 +74,7 @@ const ProgressBar = ({ currentStatus }) => {
               <div key={status} className="flex flex-col items-center">
                 <div
                   className={`
-                    w-10 h-10 rounded-full flex items-center justify-center
+                    w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center
                     transition-all duration-300 ease-out
                     ${isError ? 'bg-red-500/20 border-2 border-red-500' : ''}
                     ${!isError && isCompleted ? 'bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg shadow-purple-500/30' : ''}
@@ -84,11 +84,11 @@ const ProgressBar = ({ currentStatus }) => {
                   `}
                 >
                   {isCompleted ? (
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   ) : (
-                    <span className={`text-sm ${isCurrent ? 'text-white' : 'text-gray-400'}`}>
+                    <span className={`text-xs md:text-sm ${isCurrent ? 'text-white' : 'text-gray-400'}`}>
                       {index + 1}
                     </span>
                   )}
@@ -96,7 +96,7 @@ const ProgressBar = ({ currentStatus }) => {
 
                 <div
                   className={`
-                    mt-3 text-sm font-medium transition-all duration-300
+                    mt-2 md:mt-3 text-xs md:text-sm font-medium transition-all duration-300
                     ${isError ? 'text-red-400' : ''}
                     ${!isError && isCompleted ? 'text-purple-400' : ''}
                     ${!isError && isCurrent ? 'text-pink-400 scale-105' : ''}
@@ -106,7 +106,7 @@ const ProgressBar = ({ currentStatus }) => {
                   {status}
                 </div>
 
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-[10px] md:text-xs text-gray-500 mt-1">
                   {isCompleted && "Completed"}
                   {isCurrent && "In Progress"}
                   {isPending && "Waiting"}
@@ -187,7 +187,10 @@ const PaymentContent = () => {
     currency_from: searchParams.get('currency_from') || '',
     address_from: searchParams.get('address_from') || '',
     amount: searchParams.get('amount') || '',
-    exchange_id: searchParams.get('exchange_id') || ''
+    exchange_id: searchParams.get('exchange_id') || '',
+    currency_to: searchParams.get('currency_to') || '',
+    address_to: searchParams.get('address_to') || '',
+    amount_to: searchParams.get('amount_to') || ''
   });
   const [currentStatus, setCurrentStatus] = useState(ExchangeStatus.PENDING_DEPOSIT);
 
@@ -279,52 +282,69 @@ const PaymentContent = () => {
   }, [paymentDetails.exchange_id]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0B1426] via-[#0B1426] to-[#06090F] text-white flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-b from-[#0B1426] via-[#0B1426] to-[#06090F] text-white flex flex-col">
       <Header />
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto rounded-2xl shadow-2xl overflow-hidden">
-          {/* Glassy background wrapper */}
-          <div className="backdrop-blur-xl bg-white/5 p-8 relative">
-            {/* Gradient border effect */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 animate-gradient-xy"></div>
-            
-            {/* Content */}
-            <div className="relative">
-              <h1 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text">Complete Your Payment</h1>
+      <div className="flex-1 overflow-y-auto pt-20 pb-8">
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mx-auto rounded-2xl shadow-2xl overflow-hidden">
+            {/* Glassy background wrapper */}
+            <div className="backdrop-blur-xl bg-white/5 p-8 relative">
+              {/* Gradient border effect */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 animate-gradient-xy"></div>
               
-              <div className="space-y-6">
-                <div className="text-center">
-                  <p className="text-lg mb-2">Please send</p>
-                  <p className="text-4xl font-bold text-green-400 mb-2">{paymentDetails.amount} {paymentDetails.currency_from.toUpperCase()}</p>
-                  <p className="text-sm text-gray-400">to the following address</p>
-                </div>
-
-                <div className="bg-[#0B1426]/80 backdrop-blur-sm p-4 rounded-lg border border-blue-900/50">
-                  <div className="flex items-center justify-between">
-                    <div className="break-all">{paymentDetails.address_from}</div>
-                    <button
-                      onClick={handleCopyAddress}
-                      className="ml-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded transition-colors"
-                    >
-                      Copy
-                    </button>
+              {/* Content */}
+              <div className="relative">
+                <h1 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text">Complete Your Payment</h1>
+                
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <p className="text-lg mb-2">Please send</p>
+                    <p className="text-4xl font-bold text-green-400 mb-2">{paymentDetails.amount} {paymentDetails.currency_from.toUpperCase()}</p>
+                    <p className="text-sm text-gray-400">to the following address</p>
                   </div>
-                </div>
 
-                <ProgressBar currentStatus={currentStatus} />
+                  <div className="bg-[#0B1426]/80 backdrop-blur-sm p-4 rounded-lg border border-blue-900/50">
+                    <div className="flex items-center justify-between">
+                      <div className="break-all">{paymentDetails.address_from}</div>
+                      <button
+                        onClick={handleCopyAddress}
+                        className="ml-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
 
-                <div className="bg-yellow-900/20 backdrop-blur-sm border border-yellow-700/30 text-yellow-200 p-4 rounded-lg">
-                  <h2 className="font-bold mb-2">Important:</h2>
-                  <ul className="list-disc list-inside space-y-2">
-                    <li>Send only {paymentDetails.currency_from.toUpperCase()} to this address</li>
-                    <li>The payment should be sent in a single transaction</li>
-                    <li>Make sure to send the exact amount shown above</li>
-                    <li>The exchange rate will be locked after receiving the payment</li>
-                  </ul>
-                </div>
+                  <ProgressBar currentStatus={currentStatus} />
 
-                <div className="text-center text-sm text-gray-400">
-                  <p>The exchange will start automatically after receiving your payment</p>
+                  {/* Operation Details Section */}
+                  <div className="bg-[#0B1426]/80 backdrop-blur-sm p-6 rounded-lg border border-blue-900/50">
+                    <h2 className="text-xl font-semibold mb-4 text-center bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text">Operation Details</h2>
+                    <div className="space-y-4">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm text-gray-400">You receive</p>
+                        <p className="text-lg font-bold text-purple-400">{paymentDetails.amount_to} {paymentDetails.currency_to.toUpperCase()}</p>
+                      </div>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm text-gray-400">Recipient address</p>
+                        <p className="text-sm font-medium text-blue-400 break-all">{paymentDetails.address_to}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-900/20 backdrop-blur-sm border border-yellow-700/30 text-yellow-200 p-4 rounded-lg">
+                    <h2 className="font-bold mb-2">Important:</h2>
+                    <ul className="list-disc list-inside space-y-2">
+                      <li>Send only {paymentDetails.currency_from.toUpperCase()} to this address</li>
+                      <li>The payment should be sent in a single transaction</li>
+                      <li>Make sure to send the exact amount shown above</li>
+                      <li>The exchange rate will be locked after receiving the payment</li>
+                    </ul>
+                  </div>
+
+                  <div className="text-center text-sm text-gray-400">
+                    <p>The exchange will start automatically after receiving your payment</p>
+                  </div>
                 </div>
               </div>
             </div>

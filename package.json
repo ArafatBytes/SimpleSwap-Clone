@@ -9,13 +9,17 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@harmony-js/crypto": "^0.1.56",
     "@heroicons/react": "^2.2.0",
+    "@iota/core": "^1.0.0-beta.30",
     "@vercel/blob": "^0.26.0",
     "bcryptjs": "^2.4.3",
+    "bs58": "^6.0.0",
     "dotenv": "^16.4.7",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.11.0",
     "mongoose": "^8.8.3",
+    "near-api-js": "^5.0.1",
     "next": "15.0.3",
     "next-auth": "^4.24.10",
     "react": "^18.2.0",

@@ -435,7 +435,7 @@ export default function Exchange() {
         toast.success('Exchange requested successfully');
         
         // Redirect to payment page with the necessary data
-        router.push(`/payment?currency_from=${result.currency_from}&address_from=${result.address_from}&amount=${sendAmount}&exchange_id=${result.id}`);
+        router.push(`/payment?currency_from=${result.currency_from}&address_from=${result.address_from}&amount=${sendAmount}&exchange_id=${result.id}&currency_to=${result.currency_to}&address_to=${recipientAddress}&amount_to=${result.amount_to}`);
       } else {
         toast.error(result.description || 'Failed to create exchange');
       }
