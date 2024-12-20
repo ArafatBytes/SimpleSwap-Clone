@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function Verification() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    documentType: 'passport',
-    firstName: '',
-    lastName: '',
-    dateOfBirth: '',
-    documentNumber: '',
+    documentType: "passport",
+    firstName: "",
+    lastName: "",
+    dateOfBirth: "",
+    documentNumber: "",
   });
   const [files, setFiles] = useState({
     frontImage: null,
@@ -25,18 +25,18 @@ export default function Verification() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleFileChange = (e) => {
     const { name, files: uploadedFiles } = e.target;
     if (uploadedFiles.length > 0) {
-      setFiles(prev => ({
+      setFiles((prev) => ({
         ...prev,
-        [name]: uploadedFiles[0]
+        [name]: uploadedFiles[0],
       }));
     }
   };
@@ -46,18 +46,18 @@ export default function Verification() {
     setLoading(true);
 
     const submitData = new FormData();
-    Object.keys(formData).forEach(key => {
+    Object.keys(formData).forEach((key) => {
       submitData.append(key, formData[key]);
     });
-    Object.keys(files).forEach(key => {
+    Object.keys(files).forEach((key) => {
       if (files[key]) {
         submitData.append(key, files[key]);
       }
     });
 
     try {
-      const response = await fetch('/api/verify', {
-        method: 'POST',
+      const response = await fetch("/api/verify", {
+        method: "POST",
         body: submitData,
       });
 
@@ -65,7 +65,7 @@ export default function Verification() {
 
       if (response.ok) {
         // Show success toast before redirecting
-        toast.success('Documents submitted successfully! Redirecting...', {
+        toast.success("Documents submitted successfully! Redirecting...", {
           position: "top-right",
           autoClose: 2000, // Slightly shorter than redirect time
           hideProgressBar: false,
@@ -75,13 +75,13 @@ export default function Verification() {
           progress: undefined,
           theme: "dark",
         });
-        
+
         // Redirect after toast shows
         setTimeout(() => {
-          router.push('/');
+          router.push("/exchange");
         }, 2500);
       } else if (response.status === 401) {
-        toast.error('Please login first', {
+        toast.error("Please login first", {
           position: "top-right",
           autoClose: 2000,
           hideProgressBar: false,
@@ -92,22 +92,25 @@ export default function Verification() {
           theme: "dark",
         });
         setTimeout(() => {
-          router.push('/login');
+          router.push("/login");
         }, 2500);
       } else {
-        throw new Error(data.message || 'Failed to submit documents');
+        throw new Error(data.message || "Failed to submit documents");
       }
     } catch (error) {
-      toast.error(error.message || 'Error submitting documents. Please try again.', {
-        position: "top-right",
-        autoClose: 2500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "dark",
-      });
+      toast.error(
+        error.message || "Error submitting documents. Please try again.",
+        {
+          position: "top-right",
+          autoClose: 2500,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "dark",
+        }
+      );
     } finally {
       setLoading(false);
     }
@@ -128,8 +131,8 @@ export default function Verification() {
             />
             <span className="text-xl font-semibold">SimpleSwap</span>
           </div>
-          <Link 
-            href="/"
+          <Link
+            href="/exchange"
             className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
           >
             <svg
@@ -152,7 +155,7 @@ export default function Verification() {
 
       <div className="max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8 text-center">ID Verification</h1>
-        
+
         {/* Main Form with glassy background */}
         <div className="backdrop-blur-md bg-white/10 rounded-lg p-6 shadow-lg border border-white/20">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -225,7 +228,7 @@ export default function Verification() {
             {/* Document Upload Section */}
             <div className="space-y-4">
               <h3 className="text-xl font-semibold mb-4">Document Upload</h3>
-              
+
               <div>
                 <label className="block mb-2">Front Side of Document</label>
                 <input
@@ -272,7 +275,7 @@ export default function Verification() {
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Submitting...' : 'Submit for Verification'}
+              {loading ? "Submitting..." : "Submit for Verification"}
             </button>
           </form>
         </div>
@@ -284,7 +287,9 @@ export default function Verification() {
             <li>Make sure all document images are clear and readable</li>
             <li>File size should not exceed 5MB per image</li>
             <li>Accepted formats: JPG, PNG, PDF</li>
-            <li>Your selfie should clearly show both your face and the document</li>
+            <li>
+              Your selfie should clearly show both your face and the document
+            </li>
             <li>All information on the document should be clearly visible</li>
           </ul>
         </div>
