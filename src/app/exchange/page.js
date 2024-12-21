@@ -65,54 +65,142 @@ export default function Home() {
       try {
         setIsLoading(true);
 
-        // First, try to load data from sessionStorage
+        // First, check for exchange_id in URL
+        const searchParams = new URLSearchParams(window.location.search);
+        const exchangeId = searchParams.get("exchange_id");
+
+        // Fetch currencies first as we need them in both cases
+        const currencies = await getAllCurrencies();
+        if (!currencies.length) {
+          throw new Error("Failed to load currencies");
+        }
+        setCryptocurrencies(currencies);
+
+        // If we have an exchange_id, fetch that data first
+        if (exchangeId) {
+          try {
+            console.log(
+              "Exchange Page: Fetching data for exchange_id:",
+              exchangeId
+            );
+            const response = await fetch(`/api/exchange/${exchangeId}`);
+            const exchangeData = await response.json();
+
+            if (!response.ok) {
+              throw new Error(
+                exchangeData.error || "Failed to fetch exchange data"
+              );
+            }
+
+            console.log("Exchange Page: Exchange data:", exchangeData);
+
+            // Find the cryptocurrencies in our list
+            const sendCrypto = currencies.find(
+              (c) =>
+                c.symbol.toLowerCase() ===
+                exchangeData.currency_from.toLowerCase()
+            );
+            const getCrypto = currencies.find(
+              (c) =>
+                c.symbol.toLowerCase() ===
+                exchangeData.currency_to.toLowerCase()
+            );
+
+            if (!sendCrypto || !getCrypto) {
+              throw new Error("Invalid currencies in exchange data");
+            }
+
+            // Save to sessionStorage and update state
+            const stateToSave = {
+              step: 5,
+              sendAmount:
+                exchangeData.amount_from || exchangeData.expected_amount || "",
+              getAmount:
+                exchangeData.amount_to || exchangeData.expected_amount || "",
+              selectedSendCrypto: sendCrypto,
+              selectedGetCrypto: getCrypto,
+              recipientAddress: exchangeData.address_to || "",
+              extraId: exchangeData.extra_id_to || "",
+              refundAddress: exchangeData.user_refund_address || "",
+              refundExtraId: exchangeData.user_refund_extra_id || "",
+              exchangeData: {
+                ...exchangeData,
+                id: exchangeId,
+              },
+              exchangeStatus: {
+                ...exchangeData,
+                status: exchangeData.status,
+              },
+            };
+
+            // Update sessionStorage
+            sessionStorage.setItem(
+              "exchangeState",
+              JSON.stringify(stateToSave)
+            );
+
+            // Update all state variables
+            setStep(5);
+            setSelectedSendCrypto(sendCrypto);
+            setSelectedGetCrypto(getCrypto);
+            setSendAmount(
+              exchangeData.amount_from || exchangeData.expected_amount || ""
+            );
+            setGetAmount(
+              exchangeData.amount_to || exchangeData.expected_amount || ""
+            );
+            setRecipientAddress(exchangeData.address_to || "");
+            setExtraId(exchangeData.extra_id_to || "");
+            setRefundAddress(exchangeData.user_refund_address || "");
+            setRefundExtraId(exchangeData.user_refund_extra_id || "");
+            setExchangeData({
+              ...exchangeData,
+              id: exchangeId,
+            });
+            setExchangeStatus({
+              ...exchangeData,
+              status: exchangeData.status,
+            });
+
+            return; // Exit early as we've set up everything
+          } catch (error) {
+            console.error("Error fetching exchange:", error);
+            toast.error(error.message || "Invalid exchange ID");
+            // Don't remove the exchange_id from URL, just let it fail
+          }
+        }
+
+        // If no exchange_id or if exchange fetch failed, try loading from sessionStorage
         const savedData = sessionStorage.getItem("exchangeState");
         const parsedData = savedData ? JSON.parse(savedData) : null;
 
-        // Then, fetch the currencies
-        const currencies = await getAllCurrencies();
-        if (currencies.length > 0) {
-          setCryptocurrencies(currencies);
-
-          if (
-            parsedData &&
-            parsedData.selectedSendCrypto &&
-            parsedData.selectedGetCrypto
-          ) {
-            // If we have saved crypto selections, use them
-            setStep(parsedData.step || 1);
-            setSendAmount(parsedData.sendAmount || "");
-            setGetAmount(parsedData.getAmount || "");
-            setSelectedSendCrypto(parsedData.selectedSendCrypto);
-            setSelectedGetCrypto(parsedData.selectedGetCrypto);
-            // Call get_currency API for both saved cryptos
+        if (parsedData?.selectedSendCrypto && parsedData?.selectedGetCrypto) {
+          setStep(parsedData.step || 1);
+          setSendAmount(parsedData.sendAmount || "");
+          setGetAmount(parsedData.getAmount || "");
+          setSelectedSendCrypto(parsedData.selectedSendCrypto);
+          setSelectedGetCrypto(parsedData.selectedGetCrypto);
+          await Promise.all([
+            fetchCurrencyData(parsedData.selectedSendCrypto.symbol, true),
+            fetchCurrencyData(parsedData.selectedGetCrypto.symbol, false),
+          ]);
+          setRecipientAddress(parsedData.recipientAddress || "");
+          setExtraId(parsedData.extraId || "");
+          setRefundAddress(parsedData.refundAddress || "");
+          setRefundExtraId(parsedData.refundExtraId || "");
+          setExchangeData(parsedData.exchangeData || null);
+          setExchangeStatus(parsedData.exchangeStatus || null);
+        } else {
+          // Set defaults if no saved data
+          const btc = currencies.find((c) => c.symbol.toUpperCase() === "BTC");
+          const eth = currencies.find((c) => c.symbol.toUpperCase() === "ETH");
+          setSelectedSendCrypto(btc || currencies[0]);
+          setSelectedGetCrypto(eth || currencies[1]);
+          if (btc && eth) {
             await Promise.all([
-              fetchCurrencyData(parsedData.selectedSendCrypto.symbol, true),
-              fetchCurrencyData(parsedData.selectedGetCrypto.symbol, false),
+              fetchCurrencyData(btc.symbol, true),
+              fetchCurrencyData(eth.symbol, false),
             ]);
-            setRecipientAddress(parsedData.recipientAddress || "");
-            setExtraId(parsedData.extraId || "");
-            setRefundAddress(parsedData.refundAddress || "");
-            setRefundExtraId(parsedData.refundExtraId || "");
-            setExchangeData(parsedData.exchangeData || null);
-            setExchangeStatus(parsedData.exchangeStatus || null);
-          } else {
-            // If no saved data or no crypto selections, set defaults
-            const btc = currencies.find(
-              (c) => c.symbol.toUpperCase() === "BTC"
-            );
-            const eth = currencies.find(
-              (c) => c.symbol.toUpperCase() === "ETH"
-            );
-            setSelectedSendCrypto(btc || currencies[0]);
-            setSelectedGetCrypto(eth || currencies[1]);
-            // Call get_currency API for both default cryptos
-            if (btc && eth) {
-              await Promise.all([
-                fetchCurrencyData(btc.symbol, true),
-                fetchCurrencyData(eth.symbol, false),
-              ]);
-            }
           }
         }
       } catch (error) {
@@ -124,7 +212,7 @@ export default function Home() {
     };
 
     initializeData();
-  }, []);
+  }, []); // Only run once on mount
 
   // Keep the auth check effect separate
   useEffect(() => {
@@ -702,6 +790,106 @@ export default function Home() {
     // Reset mobile menu if open
     setIsMobileMenuOpen(false);
   };
+  // Add new useEffect for handling exchange_id parameter
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const exchangeId = searchParams.get("exchange_id");
+
+    if (!exchangeId || !cryptocurrencies.length) return;
+
+    const fetchExchange = async () => {
+      try {
+        setIsLoading(true);
+        console.log(
+          "Exchange Page: Fetching data for exchange_id:",
+          exchangeId
+        );
+
+        // Fetch exchange data from our new API endpoint
+        const response = await fetch(`/api/exchange/${exchangeId}`);
+        const exchangeData = await response.json();
+
+        if (!response.ok) {
+          console.log("Exchange Page: Exchange not found");
+          throw new Error(
+            exchangeData.error || "Failed to fetch exchange data"
+          );
+        }
+
+        console.log("Exchange Page: Exchange data:", exchangeData);
+
+        // Find the cryptocurrencies in our list
+        const sendCrypto = cryptocurrencies.find(
+          (c) =>
+            c.symbol.toLowerCase() === exchangeData.currency_from.toLowerCase()
+        );
+        const getCrypto = cryptocurrencies.find(
+          (c) =>
+            c.symbol.toLowerCase() === exchangeData.currency_to.toLowerCase()
+        );
+
+        if (sendCrypto && getCrypto) {
+          // Save to sessionStorage first
+          const stateToSave = {
+            step: 5,
+            sendAmount:
+              exchangeData.amount_from || exchangeData.expected_amount || "",
+            getAmount:
+              exchangeData.amount_to || exchangeData.expected_amount || "",
+            selectedSendCrypto: sendCrypto,
+            selectedGetCrypto: getCrypto,
+            recipientAddress: exchangeData.address_to || "",
+            extraId: exchangeData.extra_id_to || "",
+            refundAddress: exchangeData.user_refund_address || "",
+            refundExtraId: exchangeData.user_refund_extra_id || "",
+            exchangeData: {
+              ...exchangeData,
+              id: exchangeId,
+            },
+            exchangeStatus: {
+              ...exchangeData,
+              status: exchangeData.status,
+            },
+          };
+          sessionStorage.setItem("exchangeState", JSON.stringify(stateToSave));
+
+          // Then update state
+          setSelectedSendCrypto(sendCrypto);
+          setSelectedGetCrypto(getCrypto);
+          setSendAmount(
+            exchangeData.amount_from || exchangeData.expected_amount || ""
+          );
+          setGetAmount(
+            exchangeData.amount_to || exchangeData.expected_amount || ""
+          );
+          setRecipientAddress(exchangeData.address_to || "");
+          setExtraId(exchangeData.extra_id_to || "");
+          setRefundAddress(exchangeData.user_refund_address || "");
+          setRefundExtraId(exchangeData.user_refund_extra_id || "");
+          setExchangeData({
+            ...exchangeData,
+            id: exchangeId,
+          });
+          setExchangeStatus({
+            ...exchangeData,
+            status: exchangeData.status,
+          });
+          setStep(5);
+        }
+      } catch (error) {
+        console.error("Error fetching exchange:", error);
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete("exchange_id");
+        window.history.replaceState({}, "", newUrl);
+        setStep(1);
+        toast.error(error.message || "Invalid exchange ID");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchExchange();
+  }, [cryptocurrencies]);
 
   return (
     <div
@@ -1168,7 +1356,11 @@ export default function Home() {
                                     ? "opacity-50 pointer-events-none"
                                     : ""
                                 }`}
-                                onClick={() => setIsMobileMenuOpen(false)}
+                                onClick={(e) => {
+                                  if (isVerified) {
+                                    e.preventDefault();
+                                  }
+                                }}
                               >
                                 <svg
                                   className="w-4 h-4"
