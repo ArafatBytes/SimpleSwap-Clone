@@ -427,6 +427,10 @@ export default function Home() {
         toast.success("Exchange initiated successfully!");
         setExchangeData(data);
         setStep(5);
+        // Update URL with exchange ID
+        const url = new URL(window.location.href);
+        url.searchParams.set("exchange_id", data.id);
+        window.history.pushState({}, "", url);
       } else {
         throw new Error(data.message || "Failed to create exchange");
       }
@@ -663,6 +667,42 @@ export default function Home() {
     }
   }, [exchangeStatus?.status]);
 
+  // Add effect to handle URL updates when step changes
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (step !== 5) {
+      // Remove exchange_id parameter if not in step 5
+      url.searchParams.delete("exchange_id");
+      window.history.pushState({}, "", url);
+    } else if (exchangeData?.id) {
+      // Add exchange_id parameter in step 5
+      url.searchParams.set("exchange_id", exchangeData.id);
+      window.history.pushState({}, "", url);
+    }
+  }, [step, exchangeData?.id]);
+
+  const handleHomeClick = () => {
+    // Clear session storage
+    sessionStorage.removeItem("exchangeState");
+
+    // Reset all form states
+    setStep(1);
+    setSendAmount("");
+    setGetAmount("");
+    setRecipientAddress("");
+    setExtraId("");
+    setRefundAddress("");
+    setRefundExtraId("");
+    setExchangeData(null);
+    setExchangeStatus(null);
+    setMinAmountError(null);
+    setAddressError("");
+    setRefundAddressError("");
+
+    // Reset mobile menu if open
+    setIsMobileMenuOpen(false);
+  };
+
   return (
     <div
       className="min-h-screen relative"
@@ -722,6 +762,7 @@ export default function Home() {
                     <Link
                       href="/exchange"
                       className="text-white hover:text-gray-300"
+                      onClick={handleHomeClick}
                     >
                       Home
                     </Link>
@@ -978,6 +1019,7 @@ export default function Home() {
                   <Link
                     href="/exchange"
                     className="block text-white hover:text-gray-300 py-2 border-b border-white/10"
+                    onClick={handleHomeClick}
                   >
                     Home
                   </Link>
