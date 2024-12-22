@@ -512,13 +512,17 @@ export default function Home() {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success("Exchange initiated successfully!");
-        setExchangeData(data);
-        setStep(5);
-        // Update URL with exchange ID
-        const url = new URL(window.location.href);
-        url.searchParams.set("exchange_id", data.id);
-        window.history.pushState({}, "", url);
+        // Clear session storage before redirecting
+        sessionStorage.removeItem("exchangeState");
+
+        // Show success toast and wait for it to finish
+        toast.success("Exchange initiated successfully!", {
+          onClose: () => {
+            // Redirect to payment page after toast closes
+            router.push(`/payment?exchange_id=${data.id}`);
+          },
+          autoClose: 2000, // 2 seconds
+        });
       } else {
         throw new Error(data.message || "Failed to create exchange");
       }
