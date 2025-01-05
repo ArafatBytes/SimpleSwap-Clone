@@ -9,9 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
     "@harmony-js/crypto": "^0.1.56",
     "@heroicons/react": "^2.2.0",
     "@iota/core": "^1.0.0-beta.30",
+    "@mui/material": "^6.3.0",
     "@vercel/blob": "^0.26.0",
     "bcryptjs": "^2.4.3",
     "bech32": "^2.0.0",

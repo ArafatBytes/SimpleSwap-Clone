@@ -39,6 +39,8 @@ function PaymentPageContent() {
   const [refundExtraId, setRefundExtraId] = useState("");
   const [exchangeData, setExchangeData] = useState(null);
   const [exchangeStatus, setExchangeStatus] = useState(null);
+  const [userExchanges, setUserExchanges] = useState([]);
+  const [isLoadingExchanges, setIsLoadingExchanges] = useState(false);
 
   const accountDropdownRef = useRef(null);
   const searchParams = useSearchParams();
@@ -269,6 +271,32 @@ function PaymentPageContent() {
     return () => window.removeEventListener("popstate", handleRouteChange);
   }, [exchangeId]);
 
+  // Add this function to fetch user exchanges
+  const fetchUserExchanges = async () => {
+    if (!isAuthenticated) return;
+
+    setIsLoadingExchanges(true);
+    try {
+      const response = await fetch("/api/user/exchanges");
+      const data = await response.json();
+
+      if (data.success) {
+        setUserExchanges(data.data.exchanges);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user exchanges:", error);
+    } finally {
+      setIsLoadingExchanges(false);
+    }
+  };
+
+  // Add useEffect to fetch exchanges when dropdown is opened
+  useEffect(() => {
+    if (isDropdownOpen) {
+      fetchUserExchanges();
+    }
+  }, [isDropdownOpen, isAuthenticated]);
+
   return (
     <div
       className="min-h-screen relative"
@@ -338,24 +366,6 @@ function PaymentPageContent() {
                     >
                       How it works
                     </button>
-                    <Link
-                      href="/blog"
-                      className="text-[12px] sm:text-[14px] md:text-[16px] text-white/80 hover:text-white transition-colors"
-                    >
-                      Blog
-                    </Link>
-                    <Link
-                      href="/faq"
-                      className="text-[12px] sm:text-[14px] md:text-[16px] text-white/80 hover:text-white transition-colors"
-                    >
-                      FAQ
-                    </Link>
-                    <Link
-                      href="/affiliate"
-                      className="text-white hover:text-gray-300"
-                    >
-                      Affiliate
-                    </Link>
                     <div className="relative">
                       <button
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -386,18 +396,102 @@ function PaymentPageContent() {
                         </svg>
                       </button>
                       {isDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-64 rounded-lg shadow-lg bg-[#173f88] py-4 px-4">
-                          <p className="text-white text-sm mb-3">
-                            You don&apos;t have any exchanges yet
-                          </p>
-                          <button
-                            onClick={() => {
-                              window.location.href = "/exchange";
-                            }}
-                            className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
-                          >
-                            Create a new exchange
-                          </button>
+                        <div className="absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-[#173f88] py-4 px-4">
+                          {isAuthenticated ? (
+                            <>
+                              {isLoadingExchanges ? (
+                                <div className="flex justify-center py-4">
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                                </div>
+                              ) : userExchanges.length > 0 ? (
+                                <>
+                                  <div className="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                                    {userExchanges.map((exchange) => (
+                                      <div
+                                        key={exchange.id}
+                                        className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-colors"
+                                      >
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm font-medium text-white">
+                                              {exchange.currency_from.toUpperCase()}{" "}
+                                              →{" "}
+                                              {exchange.currency_to.toUpperCase()}
+                                            </span>
+                                          </div>
+                                          <span
+                                            className={`text-xs px-2 py-1 rounded ${
+                                              exchange.status === "finished"
+                                                ? "bg-green-500/20 text-green-400"
+                                                : exchange.status === "waiting"
+                                                ? "bg-yellow-500/20 text-yellow-400"
+                                                : exchange.status ===
+                                                  "confirming"
+                                                ? "bg-blue-500/20 text-blue-400"
+                                                : "bg-gray-500/20 text-gray-400"
+                                            }`}
+                                          >
+                                            {exchange.status
+                                              .charAt(0)
+                                              .toUpperCase() +
+                                              exchange.status.slice(1)}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between text-xs text-gray-300">
+                                          <span>
+                                            {exchange.amount_from}{" "}
+                                            {exchange.currency_from.toUpperCase()}
+                                          </span>
+                                          <span>
+                                            {exchange.amount_to}{" "}
+                                            {exchange.currency_to.toUpperCase()}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <div className="mt-4 pt-3 border-t border-white/10">
+                                    <button
+                                      onClick={() => {
+                                        window.location.href = "/exchange";
+                                      }}
+                                      className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
+                                    >
+                                      Create a new exchange
+                                    </button>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-white text-sm mb-3">
+                                    You don&apos;t have any exchanges yet
+                                  </p>
+                                  <button
+                                    onClick={() => {
+                                      window.location.href = "/exchange";
+                                    }}
+                                    className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
+                                  >
+                                    Create a new exchange
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-white text-sm mb-3">
+                                You don&apos;t have any exchanges yet
+                              </p>
+                              <button
+                                onClick={() => {
+                                  window.location.href = "/exchange";
+                                }}
+                                className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
+                              >
+                                Create a new exchange
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -600,25 +694,6 @@ function PaymentPageContent() {
                   >
                     How it works
                   </button>
-                  <Link
-                    href="/blog"
-                    className="block text-white hover:text-gray-300 py-2 border-b border-white/10"
-                  >
-                    Blog
-                  </Link>
-                  <Link
-                    href="/faq"
-                    className="block text-white hover:text-gray-300 py-2 border-b border-white/10"
-                  >
-                    FAQ
-                  </Link>
-                  <Link
-                    href="/affiliate"
-                    className="block text-white hover:text-gray-300 py-2 border-b border-white/10"
-                  >
-                    Affiliate
-                  </Link>
-
                   {/* Exchange Section */}
                   <div className="py-2 border-b border-white/10">
                     <button
@@ -1509,8 +1584,18 @@ function PaymentPageContent() {
                               <div className="flex justify-between">
                                 <span className="text-white/70">You Get</span>
                                 <span className="text-white font-medium">
-                                  {getAmount}{" "}
-                                  {selectedGetCrypto?.symbol.toUpperCase()}
+                                  {exchangeData?.isLocked ? (
+                                    <>
+                                      {exchangeData?.originalCurrencyTo?.toUpperCase()}{" "}
+                                      (amount will be calculated at current
+                                      rate)
+                                    </>
+                                  ) : (
+                                    <>
+                                      {getAmount}{" "}
+                                      {selectedGetCrypto?.symbol.toUpperCase()}
+                                    </>
+                                  )}
                                 </span>
                               </div>
                               <div className="flex justify-between">
@@ -1518,8 +1603,14 @@ function PaymentPageContent() {
                                   Recipient Address
                                 </span>
                                 <span className="text-white font-medium break-all">
-                                  {recipientAddress.slice(0, 10)}...
-                                  {recipientAddress.slice(-10)}
+                                  {exchangeData?.isLocked ? (
+                                    exchangeData?.originalAddressTo
+                                  ) : (
+                                    <>
+                                      {recipientAddress.slice(0, 10)}...
+                                      {recipientAddress.slice(-10)}
+                                    </>
+                                  )}
                                 </span>
                               </div>
                               {extraId && (
@@ -1587,11 +1678,22 @@ function PaymentPageContent() {
                                     </li>
                                     <li>Send only one transaction</li>
                                     <li>
-                                      Your{" "}
-                                      {selectedGetCrypto?.symbol.toUpperCase()}{" "}
-                                      will be sent to:{" "}
-                                      {recipientAddress.slice(0, 10)}...
-                                      {recipientAddress.slice(-10)}
+                                      {exchangeData?.isLocked ? (
+                                        <>
+                                          Your{" "}
+                                          {exchangeData?.originalCurrencyTo?.toUpperCase()}{" "}
+                                          will be sent to:{" "}
+                                          {exchangeData?.originalAddressTo}
+                                        </>
+                                      ) : (
+                                        <>
+                                          Your{" "}
+                                          {selectedGetCrypto?.symbol.toUpperCase()}{" "}
+                                          will be sent to:{" "}
+                                          {recipientAddress.slice(0, 10)}...
+                                          {recipientAddress.slice(-10)}
+                                        </>
+                                      )}
                                     </li>
                                   </ul>
                                 </div>

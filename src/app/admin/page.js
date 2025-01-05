@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "react-toastify";
 import Link from "next/link";
+import ExchangeDialog from "@/components/admin/ExchangeDialog";
 
 export default function AdminPanel() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export default function AdminPanel() {
   const [selectedVerification, setSelectedVerification] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedExchange, setSelectedExchange] = useState(null);
+  const [isExchangeDialogOpen, setIsExchangeDialogOpen] = useState(false);
 
   useEffect(() => {
     if (activeTab !== "failed") {
@@ -140,6 +143,18 @@ export default function AdminPanel() {
     } catch (error) {
       toast.error(error.message || "Failed to remove exchange");
     }
+  };
+
+  const handleMarkComplete = (exchange) => {
+    console.log("Opening dialog with exchange:", exchange);
+    setSelectedExchange(exchange);
+    setIsExchangeDialogOpen(true);
+  };
+
+  const handleExchangeConfirm = async (exchangeData) => {
+    console.log("Exchange confirmed:", exchangeData);
+    // Refresh the exchanges list after confirming
+    fetchData();
   };
 
   return (
@@ -333,6 +348,20 @@ export default function AdminPanel() {
                 key={exchange.id}
                 className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/10"
               >
+                <div className="mb-4 pb-4 border-b border-white/10">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white/90">
+                      Exchange Details
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/60">Exchange ID:</span>
+                      <span className="font-mono bg-white/5 px-3 py-1 rounded-lg text-white/90">
+                        {exchange.id}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Exchange Details */}
                   <div className="space-y-4">
@@ -457,6 +486,20 @@ export default function AdminPanel() {
                 key={exchange.id}
                 className="bg-red-500/10 backdrop-blur-sm rounded-lg p-6 border border-red-500/20"
               >
+                <div className="mb-4 pb-4 border-b border-white/10">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white/90">
+                      Locked Exchange Details
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/60">Exchange ID:</span>
+                      <span className="font-mono bg-white/5 px-3 py-1 rounded-lg text-white/90">
+                        {exchange.id}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* User Information */}
                 <div className="mb-4 pb-4 border-b border-white/10">
                   <h3 className="text-lg font-semibold text-white/90">
@@ -492,9 +535,9 @@ export default function AdminPanel() {
                         <p className="font-medium">{exchange.amount_from}</p>
                       </div>
                       <div className="space-y-2">
-                        <p className="text-white/60">Expected USDT:</p>
-                        <p className="font-medium">
-                          {exchange.expected_amount}
+                        <p className="text-white/60">USDT Amount:</p>
+                        <p className="font-medium text-green-400">
+                          {exchange.amount_to} USDT
                         </p>
                       </div>
                     </div>
@@ -533,10 +576,10 @@ export default function AdminPanel() {
                     </p>
                   </div>
                   <button
-                    onClick={() => handleCompleteLockedExchange(exchange.id)}
+                    onClick={() => handleMarkComplete(exchange)}
                     className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                   >
-                    Mark as Completed
+                    Mark as Complete
                   </button>
                 </div>
               </div>
@@ -626,6 +669,13 @@ export default function AdminPanel() {
           </div>
         </div>
       )}
+
+      <ExchangeDialog
+        open={isExchangeDialogOpen}
+        onClose={() => setIsExchangeDialogOpen(false)}
+        exchange={selectedExchange}
+        onConfirm={handleExchangeConfirm}
+      />
     </div>
   );
 }
