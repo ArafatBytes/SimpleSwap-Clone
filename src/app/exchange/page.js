@@ -510,8 +510,8 @@ export default function Home() {
         // Clear session storage before redirecting
         sessionStorage.removeItem("exchangeState");
 
-        // Encode the exchange ID by adding digits at start, middle and end
-        const encodedId = `5${data.id}7${data.id}3`;
+        // Simple encoding: add 5 at start and 3 at end
+        const encodedId = `5${data.id}3`;
 
         // Show success toast and wait for it to finish
         toast.success("Exchange initiated successfully!", {
@@ -1064,8 +1064,8 @@ export default function Home() {
                                       <div
                                         key={exchange.id}
                                         onClick={() => {
-                                          // Encode the exchange ID same way as in handleExchange
-                                          const encodedId = `5${exchange.id}7${exchange.id}3`;
+                                          // Simple encoding: add 5 at start and 3 at end
+                                          const encodedId = `5${exchange.id}3`;
                                           window.location.href = `/payment?exchange_id=${encodedId}`;
                                         }}
                                         className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-colors cursor-pointer"

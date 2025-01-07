@@ -64,8 +64,8 @@ function PaymentPageContent() {
         let encodedId = params.get("exchange_id");
 
         if (encodedId) {
-          // Decode the exchange ID by extracting the original ID
-          const decodedId = encodedId.slice(1).split("7")[0];
+          // Simple decoding: remove first (5) and last (3) characters
+          const decodedId = encodedId.slice(1, -1);
 
           // Fetch exchange data from database
           const response = await fetch(`/api/exchange/${decodedId}`);
@@ -514,8 +514,8 @@ function PaymentPageContent() {
                                       <div
                                         key={exchange.id}
                                         onClick={() => {
-                                          // Encode the exchange ID same way as in exchange page
-                                          const encodedId = `5${exchange.id}7${exchange.id}3`;
+                                          // Simple encoding: add 5 at start and 3 at end
+                                          const encodedId = `5${exchange.id}3`;
                                           window.location.href = `/payment?exchange_id=${encodedId}`;
                                         }}
                                         className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-colors cursor-pointer"
