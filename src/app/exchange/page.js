@@ -914,7 +914,7 @@ export default function Home() {
           if (!finalStates.includes(exchange.status)) {
             try {
               const statusResponse = await fetch(
-                `https://api.simpleswap.io/get_exchange?api_key=2677844b-3b39-4301-917f-204c82694ab7&id=${exchange.id}`
+                `https://api.simpleswap.io/get_exchange?api_key=${process.env.NEXT_PUBLIC_SIMPLESWAP_API_KEY}&id=${exchange.id}`
               );
               if (statusResponse.ok) {
                 const statusData = await statusResponse.json();

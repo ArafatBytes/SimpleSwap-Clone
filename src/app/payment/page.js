@@ -77,7 +77,7 @@ function PaymentPageContent() {
 
           // Then fetch detailed exchange data from SimpleSwap API
           const apiResponse = await fetch(
-            `https://api.simpleswap.io/get_exchange?api_key=2677844b-3b39-4301-917f-204c82694ab7&id=${decodedId}`
+            `https://api.simpleswap.io/get_exchange?api_key=${process.env.NEXT_PUBLIC_SIMPLESWAP_API_KEY}&id=${decodedId}`
           );
           const apiData = await apiResponse.json();
 
@@ -165,7 +165,7 @@ function PaymentPageContent() {
 
         // Fetch status directly from SimpleSwap API
         const response = await fetch(
-          `https://api.simpleswap.io/get_exchange?api_key=2677844b-3b39-4301-917f-204c82694ab7&id=${exchangeData.id}`
+          `https://api.simpleswap.io/get_exchange?api_key=${process.env.NEXT_PUBLIC_SIMPLESWAP_API_KEY}&id=${exchangeData.id}`
         );
         if (!response.ok) throw new Error("Failed to fetch exchange status");
 
@@ -364,7 +364,7 @@ function PaymentPageContent() {
           if (!finalStates.includes(exchange.status)) {
             try {
               const statusResponse = await fetch(
-                `https://api.simpleswap.io/get_exchange?api_key=2677844b-3b39-4301-917f-204c82694ab7&id=${exchange.id}`
+                `https://api.simpleswap.io/get_exchange?api_key=${process.env.NEXT_PUBLIC_SIMPLESWAP_API_KEY}&id=${exchange.id}`
               );
               if (statusResponse.ok) {
                 const statusData = await statusResponse.json();
