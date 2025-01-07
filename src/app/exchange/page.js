@@ -55,6 +55,7 @@ export default function Home() {
     useState(null);
   const [userExchanges, setUserExchanges] = useState([]);
   const [isLoadingExchanges, setIsLoadingExchanges] = useState(false);
+  const [usdValue, setUsdValue] = useState(0);
 
   const sendDropdownRef = useRef(null);
   const getDropdownRef = useRef(null);
@@ -394,19 +395,19 @@ export default function Home() {
   const getFilteredCryptos = (searchQuery, category = "all") => {
     let filteredList = cryptocurrencies;
 
-    // First filter by category
-    if (category !== "all") {
-      filteredList = cryptocurrencies.filter((crypto) =>
-        cryptoCategories[category].includes(crypto.symbol.toUpperCase())
-      );
-    }
-
-    // Then filter by search query if exists
+    // If there's a search query, search across all cryptocurrencies
     if (searchQuery) {
-      return filteredList.filter(
+      return cryptocurrencies.filter(
         (crypto) =>
           crypto.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           crypto.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Only apply category filter if there's no search query
+    if (category !== "all") {
+      filteredList = cryptocurrencies.filter((crypto) =>
+        cryptoCategories[category].includes(crypto.symbol.toUpperCase())
       );
     }
 
@@ -429,45 +430,21 @@ export default function Home() {
         return;
       }
 
-      // Get USD value before showing warning
+      // Get USD value before proceeding
       try {
         const usdRateResult = await getExchangeRate(
           selectedSendCrypto.symbol,
-          "usdt", // Changed from "usdttrc20" to "usdt"
+          "usdt",
           sendAmount
         );
 
         if (!usdRateResult.error) {
-          const usdValue = parseFloat(usdRateResult.rate);
-          console.log("Transaction USD value:", usdValue);
-
-          // Show warning for unverified users attempting large transactions
-          if (!isVerified && usdValue >= 10) {
-            toast.warning(
-              "Important: For transactions exceeding $10 in value, ID verification is required to complete the exchange. Please verify your identity in your account settings.",
-              {
-                position: "top-center",
-                autoClose: 10000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                style: {
-                  background: "rgba(234, 179, 8, 0.9)",
-                  color: "#000",
-                  borderRadius: "8px",
-                  padding: "16px",
-                  fontSize: "14px",
-                  maxWidth: "400px",
-                  textAlign: "center",
-                },
-              }
-            );
-          }
+          const calculatedUsdValue = parseFloat(usdRateResult.rate);
+          setUsdValue(calculatedUsdValue);
+          console.log("Transaction USD value:", calculatedUsdValue);
         }
       } catch (error) {
-        console.error("Failed to get USD value for warning:", error);
+        console.error("Failed to get USD value:", error);
       }
 
       setStep(2);
@@ -533,11 +510,14 @@ export default function Home() {
         // Clear session storage before redirecting
         sessionStorage.removeItem("exchangeState");
 
+        // Encode the exchange ID by adding digits at start, middle and end
+        const encodedId = `5${data.id}7${data.id}3`;
+
         // Show success toast and wait for it to finish
         toast.success("Exchange initiated successfully!", {
           onClose: () => {
             // Redirect to payment page after toast closes
-            router.push(`/payment?exchange_id=${data.id}`);
+            router.push(`/payment?exchange_id=${encodedId}`);
           },
           autoClose: 2000, // 2 seconds
         });
@@ -923,7 +903,39 @@ export default function Home() {
       const data = await response.json();
 
       if (data.success) {
-        setUserExchanges(data.data.exchanges);
+        const exchanges = data.data.exchanges;
+        const updatedExchanges = [...exchanges];
+
+        // Only fetch status for exchanges that are not in final state
+        for (let i = 0; i < exchanges.length; i++) {
+          const exchange = exchanges[i];
+          const finalStates = ["finished", "failed", "refunded", "expired"];
+
+          if (!finalStates.includes(exchange.status)) {
+            try {
+              const statusResponse = await fetch(
+                `https://api.simpleswap.io/get_exchange?api_key=2677844b-3b39-4301-917f-204c82694ab7&id=${exchange.id}`
+              );
+              if (statusResponse.ok) {
+                const statusData = await statusResponse.json();
+                updatedExchanges[i] = {
+                  ...exchange,
+                  status: statusData.status,
+                };
+              }
+              // Add a small delay between requests
+              if (i < exchanges.length - 1) {
+                await new Promise((resolve) => setTimeout(resolve, 500));
+              }
+            } catch (error) {
+              console.error(
+                `Failed to fetch status for exchange ${exchange.id}:`,
+                error
+              );
+            }
+          }
+        }
+        setUserExchanges(updatedExchanges);
       }
     } catch (error) {
       console.error("Failed to fetch user exchanges:", error);
@@ -1051,7 +1063,12 @@ export default function Home() {
                                     {userExchanges.map((exchange) => (
                                       <div
                                         key={exchange.id}
-                                        className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-colors"
+                                        onClick={() => {
+                                          // Encode the exchange ID same way as in handleExchange
+                                          const encodedId = `5${exchange.id}7${exchange.id}3`;
+                                          window.location.href = `/payment?exchange_id=${encodedId}`;
+                                        }}
+                                        className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-colors cursor-pointer"
                                       >
                                         <div className="flex items-center justify-between mb-2">
                                           <div className="flex items-center gap-2">
@@ -1070,6 +1087,15 @@ export default function Home() {
                                                 : exchange.status ===
                                                   "confirming"
                                                 ? "bg-blue-500/20 text-blue-400"
+                                                : exchange.status ===
+                                                  "exchanging"
+                                                ? "bg-purple-500/20 text-purple-400"
+                                                : exchange.status ===
+                                                    "failed" ||
+                                                  exchange.status ===
+                                                    "expired" ||
+                                                  exchange.status === "refunded"
+                                                ? "bg-red-500/20 text-red-400"
                                                 : "bg-gray-500/20 text-gray-400"
                                             }`}
                                           >
@@ -1093,12 +1119,14 @@ export default function Home() {
                                     ))}
                                   </div>
                                   <div className="mt-4 pt-3 border-t border-white/10">
-                                    <Link
-                                      href="/exchange"
+                                    <button
+                                      onClick={() => {
+                                        window.location.href = "/exchange";
+                                      }}
                                       className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
                                     >
                                       Create a new exchange
-                                    </Link>
+                                    </button>
                                   </div>
                                 </>
                               ) : (
@@ -1106,12 +1134,14 @@ export default function Home() {
                                   <p className="text-white text-sm mb-3">
                                     You don&apos;t have any exchanges yet
                                   </p>
-                                  <Link
-                                    href="/exchange"
+                                  <button
+                                    onClick={() => {
+                                      window.location.href = "/exchange";
+                                    }}
                                     className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
                                   >
                                     Create a new exchange
-                                  </Link>
+                                  </button>
                                 </>
                               )}
                             </>
@@ -1120,12 +1150,14 @@ export default function Home() {
                               <p className="text-white text-sm mb-3">
                                 You don&apos;t have any exchanges yet
                               </p>
-                              <Link
-                                href="/exchange"
+                              <button
+                                onClick={() => {
+                                  window.location.href = "/exchange";
+                                }}
                                 className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
                               >
                                 Create a new exchange
-                              </Link>
+                              </button>
                             </>
                           )}
                         </div>
@@ -1756,25 +1788,32 @@ export default function Home() {
                                 />
                               </div>
                               <div className="flex flex-wrap gap-2 p-4 border-b border-white/20">
-                                {Object.entries(cryptoCategories).map(
-                                  ([key, _]) => (
-                                    <button
-                                      key={key}
-                                      className={`px-3 py-1 rounded-full text-xs ${
-                                        selectedCategory === key
-                                          ? "bg-blue-500 text-white"
-                                          : "bg-white/10 backdrop-blur-xl text-white/70 hover:bg-white/20"
-                                      }`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedCategory(key);
-                                      }}
-                                    >
-                                      {key.charAt(0).toUpperCase() +
-                                        key.slice(1)}
-                                    </button>
-                                  )
-                                )}
+                                {[
+                                  { key: "all", label: "All" },
+                                  ...Object.entries(cryptoCategories).map(
+                                    ([key, _]) => ({
+                                      key,
+                                      label:
+                                        key.charAt(0).toUpperCase() +
+                                        key.slice(1),
+                                    })
+                                  ),
+                                ].map((category) => (
+                                  <button
+                                    key={category.key}
+                                    className={`px-3 py-1 rounded-full text-xs ${
+                                      selectedCategory === category.key
+                                        ? "bg-blue-500 text-white"
+                                        : "bg-white/10 backdrop-blur-xl text-white/70 hover:bg-white/20"
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCategory(category.key);
+                                    }}
+                                  >
+                                    {category.label}
+                                  </button>
+                                ))}
                               </div>
                               <div className="bg-white/10">
                                 {filteredSendCryptos.map((crypto) => (
@@ -1895,25 +1934,32 @@ export default function Home() {
                                 />
                               </div>
                               <div className="flex flex-wrap gap-2 p-4 border-b border-white/20">
-                                {Object.entries(cryptoCategories).map(
-                                  ([key, _]) => (
-                                    <button
-                                      key={key}
-                                      className={`px-3 py-1 rounded-full text-xs ${
-                                        selectedCategory === key
-                                          ? "bg-blue-500 text-white"
-                                          : "bg-white/10 backdrop-blur-xl text-white/70 hover:bg-white/20"
-                                      }`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedCategory(key);
-                                      }}
-                                    >
-                                      {key.charAt(0).toUpperCase() +
-                                        key.slice(1)}
-                                    </button>
-                                  )
-                                )}
+                                {[
+                                  { key: "all", label: "All" },
+                                  ...Object.entries(cryptoCategories).map(
+                                    ([key, _]) => ({
+                                      key,
+                                      label:
+                                        key.charAt(0).toUpperCase() +
+                                        key.slice(1),
+                                    })
+                                  ),
+                                ].map((category) => (
+                                  <button
+                                    key={category.key}
+                                    className={`px-3 py-1 rounded-full text-xs ${
+                                      selectedCategory === category.key
+                                        ? "bg-blue-500 text-white"
+                                        : "bg-white/10 backdrop-blur-xl text-white/70 hover:bg-white/20"
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCategory(category.key);
+                                    }}
+                                  >
+                                    {category.label}
+                                  </button>
+                                ))}
                               </div>
                               <div className="bg-white/10">
                                 {filteredGetCryptos.map((crypto) => (
@@ -1970,7 +2016,7 @@ export default function Home() {
 
                   {step === 2 && (
                     <div className="space-y-4">
-                      <div>
+                      <div className="bg-white/5 backdrop-blur-md rounded-xl p-4">
                         <label
                           htmlFor="recipientAddress"
                           className="block text-sm font-medium text-white mb-2"

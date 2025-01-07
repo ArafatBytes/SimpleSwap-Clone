@@ -59,69 +59,64 @@ function PaymentPageContent() {
         }
         setCryptocurrencies(currencies);
 
-        if (exchangeId) {
-          try {
-            console.log(
-              "Payment Page: Fetching data for exchange_id:",
-              exchangeId
-            );
+        // Get exchange ID from URL
+        const params = new URLSearchParams(window.location.search);
+        let encodedId = params.get("exchange_id");
 
-            // First fetch basic data from our database to get currency info
-            const dbResponse = await fetch(`/api/exchange/${exchangeId}`);
-            const dbData = await dbResponse.json();
+        if (encodedId) {
+          // Decode the exchange ID by extracting the original ID
+          const decodedId = encodedId.slice(1).split("7")[0];
 
-            if (!dbResponse.ok) {
-              throw new Error(dbData.error || "Failed to fetch exchange data");
-            }
+          // Fetch exchange data from database
+          const response = await fetch(`/api/exchange/${decodedId}`);
+          const dbData = await response.json();
 
-            // Then fetch detailed exchange data from SimpleSwap API
-            const apiResponse = await fetch(
-              `https://api.simpleswap.io/get_exchange?api_key=2677844b-3b39-4301-917f-204c82694ab7&id=${exchangeId}`
-            );
-            const apiData = await apiResponse.json();
-
-            if (!apiResponse.ok) {
-              throw new Error("Failed to fetch exchange data from SimpleSwap");
-            }
-
-            // Find the cryptocurrencies in our list
-            const sendCrypto = currencies.find(
-              (c) =>
-                c.symbol.toLowerCase() === dbData.currency_from.toLowerCase()
-            );
-            const getCrypto = currencies.find(
-              (c) => c.symbol.toLowerCase() === dbData.currency_to.toLowerCase()
-            );
-
-            if (!sendCrypto || !getCrypto) {
-              throw new Error("Invalid currencies in exchange data");
-            }
-
-            // Merge data from both sources
-            const mergedData = {
-              ...dbData,
-              ...apiData,
-              id: exchangeId,
-            };
-
-            // Update state with merged exchange data
-            setSelectedSendCrypto(sendCrypto);
-            setSelectedGetCrypto(getCrypto);
-            setSendAmount(
-              apiData.amount_from || mergedData.expected_amount || ""
-            );
-            setGetAmount(apiData.amount_to || ""); // Get amount_to from SimpleSwap API
-            setRecipientAddress(mergedData.address_to || "");
-            setExtraId(mergedData.extra_id_to || "");
-            setRefundAddress(mergedData.user_refund_address || "");
-            setRefundExtraId(mergedData.user_refund_extra_id || "");
-            setExchangeData(mergedData);
-            setExchangeStatus(mergedData);
-          } catch (error) {
-            console.error("Error fetching exchange:", error);
-            toast.error(error.message || "Invalid exchange ID");
-            router.replace("/exchange");
+          if (!response.ok) {
+            throw new Error(dbData.error || "Failed to fetch exchange data");
           }
+
+          // Then fetch detailed exchange data from SimpleSwap API
+          const apiResponse = await fetch(
+            `https://api.simpleswap.io/get_exchange?api_key=2677844b-3b39-4301-917f-204c82694ab7&id=${decodedId}`
+          );
+          const apiData = await apiResponse.json();
+
+          if (!apiResponse.ok) {
+            throw new Error("Failed to fetch exchange data from SimpleSwap");
+          }
+
+          // Find the cryptocurrencies in our list
+          const sendCrypto = currencies.find(
+            (c) => c.symbol.toLowerCase() === dbData.currency_from.toLowerCase()
+          );
+          const getCrypto = currencies.find(
+            (c) => c.symbol.toLowerCase() === dbData.currency_to.toLowerCase()
+          );
+
+          if (!sendCrypto || !getCrypto) {
+            throw new Error("Invalid currencies in exchange data");
+          }
+
+          // Merge data from both sources
+          const mergedData = {
+            ...dbData,
+            ...apiData,
+            id: decodedId,
+          };
+
+          // Update state with merged exchange data
+          setSelectedSendCrypto(sendCrypto);
+          setSelectedGetCrypto(getCrypto);
+          setSendAmount(
+            apiData.amount_from || mergedData.expected_amount || ""
+          );
+          setGetAmount(apiData.amount_to || ""); // Get amount_to from SimpleSwap API
+          setRecipientAddress(mergedData.address_to || "");
+          setExtraId(mergedData.extra_id_to || "");
+          setRefundAddress(mergedData.user_refund_address || "");
+          setRefundExtraId(mergedData.user_refund_extra_id || "");
+          setExchangeData(mergedData);
+          setExchangeStatus(mergedData);
         } else {
           router.replace("/exchange");
         }
@@ -134,7 +129,7 @@ function PaymentPageContent() {
     };
 
     initializeData();
-  }, [exchangeId, router]);
+  }, [router]);
 
   // Keep the auth check effect
   useEffect(() => {
@@ -183,6 +178,83 @@ function PaymentPageContent() {
         });
 
         setExchangeStatus(data);
+
+        // Show KYC popup when status becomes confirming
+        if (
+          data.status === "confirming" &&
+          exchangeStatus?.status !== "confirming"
+        ) {
+          toast.info(
+            <div className="flex items-start gap-4">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-blue-500 flex-shrink-0"
+              >
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <circle cx="9" cy="10" r="2" />
+                <path d="M15 8h2" />
+                <path d="M15 12h2" />
+                <path d="M7 16h10" />
+                <circle cx="16" cy="16" r="6" fill="#3b82f6" stroke="none" />
+                <path
+                  d="M14 16l1.5 1.5 2.5-2.5"
+                  stroke="white"
+                  strokeWidth="1.5"
+                />
+              </svg>
+              <div className="text-center flex-1">
+                <p className="mb-4">
+                  This transaction exceeds your account limits, to continue
+                  please:
+                </p>
+                <div className="flex justify-center gap-4">
+                  <button
+                    onClick={() => {
+                      window.location.href = "/verification";
+                    }}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    Submit KYC
+                  </button>
+                  <button
+                    onClick={() => {
+                      window.location.href = `mailto:mdarafat1661@gmail.com?subject=Refund Request for Transaction&body=Hello, I would like to request a refund for my transaction.`;
+                    }}
+                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    Request Refund
+                  </button>
+                </div>
+              </div>
+            </div>,
+            {
+              position: "top-center",
+              autoClose: false,
+              hideProgressBar: false,
+              closeOnClick: false,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              style: {
+                background: "rgba(0, 0, 0, 0.9)",
+                padding: "20px",
+                borderRadius: "12px",
+                minWidth: "400px",
+                width: "fit-content",
+                color: "white",
+              },
+              icon: false,
+            }
+          );
+        }
 
         // Only show status change toasts for completed or error states
         if (
@@ -281,7 +353,39 @@ function PaymentPageContent() {
       const data = await response.json();
 
       if (data.success) {
-        setUserExchanges(data.data.exchanges);
+        const exchanges = data.data.exchanges;
+        const updatedExchanges = [...exchanges];
+
+        // Only fetch status for exchanges that are not in final state
+        for (let i = 0; i < exchanges.length; i++) {
+          const exchange = exchanges[i];
+          const finalStates = ["finished", "failed", "refunded", "expired"];
+
+          if (!finalStates.includes(exchange.status)) {
+            try {
+              const statusResponse = await fetch(
+                `https://api.simpleswap.io/get_exchange?api_key=2677844b-3b39-4301-917f-204c82694ab7&id=${exchange.id}`
+              );
+              if (statusResponse.ok) {
+                const statusData = await statusResponse.json();
+                updatedExchanges[i] = {
+                  ...exchange,
+                  status: statusData.status,
+                };
+              }
+              // Add a small delay between requests
+              if (i < exchanges.length - 1) {
+                await new Promise((resolve) => setTimeout(resolve, 500));
+              }
+            } catch (error) {
+              console.error(
+                `Failed to fetch status for exchange ${exchange.id}:`,
+                error
+              );
+            }
+          }
+        }
+        setUserExchanges(updatedExchanges);
       }
     } catch (error) {
       console.error("Failed to fetch user exchanges:", error);
@@ -409,7 +513,12 @@ function PaymentPageContent() {
                                     {userExchanges.map((exchange) => (
                                       <div
                                         key={exchange.id}
-                                        className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-colors"
+                                        onClick={() => {
+                                          // Encode the exchange ID same way as in exchange page
+                                          const encodedId = `5${exchange.id}7${exchange.id}3`;
+                                          window.location.href = `/payment?exchange_id=${encodedId}`;
+                                        }}
+                                        className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-colors cursor-pointer"
                                       >
                                         <div className="flex items-center justify-between mb-2">
                                           <div className="flex items-center gap-2">
@@ -428,6 +537,15 @@ function PaymentPageContent() {
                                                 : exchange.status ===
                                                   "confirming"
                                                 ? "bg-blue-500/20 text-blue-400"
+                                                : exchange.status ===
+                                                  "exchanging"
+                                                ? "bg-purple-500/20 text-purple-400"
+                                                : exchange.status ===
+                                                    "failed" ||
+                                                  exchange.status ===
+                                                    "expired" ||
+                                                  exchange.status === "refunded"
+                                                ? "bg-red-500/20 text-red-400"
                                                 : "bg-gray-500/20 text-gray-400"
                                             }`}
                                           >
@@ -967,98 +1085,134 @@ function PaymentPageContent() {
                   <div className="absolute top-5 left-0 w-full h-[2px] bg-white/5">
                     <div
                       className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-in-out"
-                      style={{ width: `${((step - 1) / 4) * 100}%` }}
+                      style={{
+                        width:
+                          exchangeStatus?.status === "finished"
+                            ? "100%"
+                            : exchangeStatus?.status === "confirming"
+                            ? "75%"
+                            : exchangeStatus?.status === "exchanging"
+                            ? "50%"
+                            : exchangeStatus?.status === "waiting"
+                            ? "25%"
+                            : exchangeStatus?.status === "failed" ||
+                              exchangeStatus?.status === "refunded" ||
+                              exchangeStatus?.status === "expired"
+                            ? "100%"
+                            : "0%",
+                        backgroundColor:
+                          exchangeStatus?.status === "failed" ||
+                          exchangeStatus?.status === "refunded" ||
+                          exchangeStatus?.status === "expired"
+                            ? "#EF4444"
+                            : undefined,
+                      }}
                     />
                   </div>
 
-                  {/* Steps */}
+                  {/* Status Steps */}
                   <div className="flex justify-between relative">
                     {[
                       {
-                        number: 1,
-                        title: "Amount",
-                        description: "Select currencies and amount",
+                        title: "Waiting",
+                        description: "Waiting for deposit",
+                        status: "waiting",
                       },
                       {
-                        number: 2,
-                        title: "Address",
-                        description: "Enter recipient address",
+                        title: "Exchanging",
+                        description: "Exchange in progress",
+                        status: "exchanging",
                       },
                       {
-                        number: 3,
-                        title: "Refund",
-                        description: "Set refund address",
+                        title: "Confirming",
+                        description: "Confirming transaction",
+                        status: "confirming",
                       },
                       {
-                        number: 4,
-                        title: "Confirm",
-                        description: "Review exchange details",
+                        title: "Completed",
+                        description: "Exchange completed",
+                        status: "finished",
                       },
-                      {
-                        number: 5,
-                        title: "Payment",
-                        description: "Complete your payment",
-                      },
-                    ].map((stepItem) => (
-                      <div
-                        key={stepItem.number}
-                        className="flex flex-col items-center"
-                      >
+                    ].map((statusStep) => {
+                      const isActive =
+                        exchangeStatus?.status === statusStep.status;
+                      const isPassed =
+                        exchangeStatus?.status === "finished" ||
+                        (exchangeStatus?.status === "confirming" &&
+                          statusStep.status !== "finished") ||
+                        (exchangeStatus?.status === "exchanging" &&
+                          ["waiting", "exchanging"].includes(
+                            statusStep.status
+                          )) ||
+                        (exchangeStatus?.status === "waiting" &&
+                          statusStep.status === "waiting");
+                      const isError = [
+                        "failed",
+                        "refunded",
+                        "expired",
+                      ].includes(exchangeStatus?.status);
+
+                      return (
                         <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-300 ${
-                            step >= stepItem.number
-                              ? "bg-gradient-to-r from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30"
-                              : "bg-white/5 border border-white/10"
-                          }`}
+                          key={statusStep.status}
+                          className="flex flex-col items-center"
                         >
-                          {step > stepItem.number ? (
-                            <svg
-                              className="w-6 h-6 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          ) : (
-                            <span
-                              className={`text-lg font-semibold ${
-                                step >= stepItem.number
+                          <div
+                            className={`w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-300 ${
+                              isError
+                                ? "bg-red-500"
+                                : isActive || isPassed
+                                ? "bg-gradient-to-r from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30"
+                                : "bg-white/5 border border-white/10"
+                            }`}
+                          >
+                            {isPassed || isActive ? (
+                              <svg
+                                className="w-6 h-6 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            ) : (
+                              <span className="text-lg font-semibold text-white/50">
+                                •
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-4 text-center">
+                            <div
+                              className={`text-sm font-medium transition-colors duration-300 ${
+                                isError
+                                  ? "text-red-500"
+                                  : isActive || isPassed
                                   ? "text-white"
                                   : "text-white/50"
                               }`}
                             >
-                              {stepItem.number}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-4 text-center">
-                          <div
-                            className={`text-sm font-medium transition-colors duration-300 ${
-                              step >= stepItem.number
-                                ? "text-white"
-                                : "text-white/50"
-                            }`}
-                          >
-                            {stepItem.title}
-                          </div>
-                          <div
-                            className={`text-xs mt-1 transition-colors duration-300 ${
-                              step >= stepItem.number
-                                ? "text-white/70"
-                                : "text-white/30"
-                            }`}
-                          >
-                            {stepItem.description}
+                              {statusStep.title}
+                            </div>
+                            <div
+                              className={`text-xs mt-1 transition-colors duration-300 ${
+                                isError
+                                  ? "text-red-400"
+                                  : isActive || isPassed
+                                  ? "text-white/70"
+                                  : "text-white/30"
+                              }`}
+                            >
+                              {statusStep.description}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1517,224 +1671,314 @@ function PaymentPageContent() {
                         </p>
                       </div>
 
-                      <div className="bg-[#0B1426]/80 backdrop-blur-sm p-6 rounded-lg border border-blue-900/50">
-                        <div className="flex flex-col gap-4">
-                          <div className="w-full space-y-4">
-                            <div className="flex items-center justify-between bg-white/5 backdrop-blur-sm p-4 rounded-lg">
-                              <div className="break-all text-white text-sm">
-                                {exchangeData?.address_from ||
-                                  "Loading address..."}
-                              </div>
-                              <button
-                                onClick={() => {
-                                  if (exchangeData?.address_from) {
-                                    navigator.clipboard.writeText(
-                                      exchangeData.address_from
-                                    );
-                                    toast.success(
-                                      "Address copied to clipboard!"
-                                    );
-                                  }
-                                }}
-                                className="ml-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
-                              >
-                                <svg
-                                  className="w-5 h-5 text-white"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
+                      {/* Loading Spinner */}
+                      {exchangeStatus?.status &&
+                        !["finished", "failed", "refunded", "expired"].includes(
+                          exchangeStatus.status
+                        ) && (
+                          <div className="flex flex-col items-center justify-center space-y-3 mb-4">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                            <p className="text-white/70 text-sm">
+                              Your transaction will automatically be detected
+                            </p>
+                          </div>
+                        )}
 
-                            {/* Exchange Details */}
-                            <div className="bg-white/5 backdrop-blur-sm p-4 rounded-lg space-y-3">
-                              <div className="flex justify-between items-center">
-                                <span className="text-white/70">Status</span>
-                                <span className="text-white font-medium">
-                                  <span
-                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800`}
+                      {exchangeStatus?.status === "finished" ? (
+                        <div className="bg-white rounded-lg p-8 text-center">
+                          <h2 className="text-[24px] font-semibold text-gray-900 mb-4">
+                            Finished successfully
+                          </h2>
+                          <div className="flex items-center justify-center gap-4 mb-8">
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={selectedSendCrypto?.icon}
+                                alt={selectedSendCrypto?.symbol}
+                                className="w-8 h-8"
+                              />
+                              <span className="text-lg font-medium text-gray-900">
+                                {sendAmount}{" "}
+                                {selectedSendCrypto?.symbol.toUpperCase()}
+                              </span>
+                            </div>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              strokeWidth={1.5}
+                              stroke="currentColor"
+                              className="w-6 h-6 text-gray-400"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
+                              />
+                            </svg>
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={selectedGetCrypto?.icon}
+                                alt={selectedGetCrypto?.symbol}
+                                className="w-8 h-8"
+                              />
+                              <span className="text-lg font-medium text-gray-900">
+                                {getAmount}{" "}
+                                {selectedGetCrypto?.symbol.toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              window.location.href = "/exchange";
+                            }}
+                            className="bg-[#0f75fc] text-white px-8 py-3 rounded-lg font-medium hover:bg-[#0956c8] transition-colors"
+                          >
+                            Start a new exchange
+                          </button>
+                          <button
+                            onClick={() => {
+                              window.location.reload();
+                            }}
+                            className="ml-4 text-gray-500 hover:text-gray-700"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              strokeWidth={1.5}
+                              stroke="currentColor"
+                              className="w-5 h-5"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="bg-[#0B1426]/80 backdrop-blur-sm p-6 rounded-lg border border-blue-900/50">
+                          <div className="flex flex-col gap-4">
+                            <div className="w-full space-y-4">
+                              <div className="flex items-center justify-between bg-white/5 backdrop-blur-sm p-4 rounded-lg">
+                                <div className="break-all text-white text-sm">
+                                  {exchangeData?.address_from ||
+                                    "Loading address..."}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    if (exchangeData?.address_from) {
+                                      navigator.clipboard.writeText(
+                                        exchangeData.address_from
+                                      );
+                                      toast.success(
+                                        "Address copied to clipboard!"
+                                      );
+                                    }
+                                  }}
+                                  className="ml-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                >
+                                  <svg
+                                    className="w-5 h-5 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                   >
-                                    {exchangeStatus?.status}
-                                  </span>
-                                </span>
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                                    />
+                                  </svg>
+                                </button>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-white/70">
-                                  Payment Wallet Address
-                                </span>
-                                <span className="text-white font-medium">
-                                  {exchangeData?.address_from}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-white/70">You Send</span>
-                                <span className="text-white font-medium">
-                                  {sendAmount}{" "}
-                                  {selectedSendCrypto?.symbol.toUpperCase()}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-white/70">You Get</span>
-                                <span className="text-white font-medium">
-                                  {exchangeData?.isLocked ? (
-                                    <>
-                                      {exchangeData?.originalCurrencyTo?.toUpperCase()}{" "}
-                                      (amount will be calculated at current
-                                      rate)
-                                    </>
-                                  ) : (
-                                    <>
-                                      {getAmount}{" "}
-                                      {selectedGetCrypto?.symbol.toUpperCase()}
-                                    </>
-                                  )}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-white/70">
-                                  Recipient Address
-                                </span>
-                                <span className="text-white font-medium break-all">
-                                  {exchangeData?.isLocked ? (
-                                    exchangeData?.originalAddressTo
-                                  ) : (
-                                    <>
-                                      {recipientAddress.slice(0, 10)}...
-                                      {recipientAddress.slice(-10)}
-                                    </>
-                                  )}
-                                </span>
-                              </div>
-                              {extraId && (
-                                <div className="flex justify-between">
-                                  <span className="text-white/70">
-                                    Extra ID
-                                  </span>
+
+                              {/* Exchange Details */}
+                              <div className="bg-white/5 backdrop-blur-sm p-4 rounded-lg space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-white/70">Status</span>
                                   <span className="text-white font-medium">
-                                    {extraId}
+                                    <span
+                                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800`}
+                                    >
+                                      {exchangeStatus?.status}
+                                    </span>
                                   </span>
                                 </div>
-                              )}
-                              {refundAddress && (
                                 <div className="flex justify-between">
                                   <span className="text-white/70">
-                                    Refund Address
+                                    Payment Wallet Address
                                   </span>
                                   <span className="text-white font-medium break-all">
-                                    {refundAddress.slice(0, 10)}...
-                                    {refundAddress.slice(-10)}
+                                    {exchangeData?.address_from}
                                   </span>
                                 </div>
-                              )}
-                              {refundExtraId && (
                                 <div className="flex justify-between">
                                   <span className="text-white/70">
-                                    Refund Extra ID
+                                    You Send
                                   </span>
                                   <span className="text-white font-medium">
-                                    {refundExtraId}
+                                    {sendAmount}{" "}
+                                    {selectedSendCrypto?.symbol.toUpperCase()}
                                   </span>
                                 </div>
-                              )}
-                            </div>
+                                <div className="flex justify-between">
+                                  <span className="text-white/70">You Get</span>
+                                  <span className="text-white font-medium">
+                                    {exchangeData?.isLocked ? (
+                                      <>
+                                        {exchangeData?.originalCurrencyTo?.toUpperCase()}{" "}
+                                        (amount will be calculated at current
+                                        rate)
+                                      </>
+                                    ) : (
+                                      <>
+                                        {getAmount}{" "}
+                                        {selectedGetCrypto?.symbol.toUpperCase()}
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-white/70">
+                                    Recipient Address
+                                  </span>
+                                  <span className="text-white font-medium break-all">
+                                    {exchangeData?.isLocked ? (
+                                      exchangeData?.originalAddressTo
+                                    ) : (
+                                      <>
+                                        {recipientAddress.slice(0, 10)}...
+                                        {recipientAddress.slice(-10)}
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
+                                {extraId && (
+                                  <div className="flex justify-between">
+                                    <span className="text-white/70">
+                                      Extra ID
+                                    </span>
+                                    <span className="text-white font-medium">
+                                      {extraId}
+                                    </span>
+                                  </div>
+                                )}
+                                {refundAddress && (
+                                  <div className="flex justify-between">
+                                    <span className="text-white/70">
+                                      Refund Address
+                                    </span>
+                                    <span className="text-white font-medium break-all">
+                                      {refundAddress.slice(0, 10)}...
+                                      {refundAddress.slice(-10)}
+                                    </span>
+                                  </div>
+                                )}
+                                {refundExtraId && (
+                                  <div className="flex justify-between">
+                                    <span className="text-white/70">
+                                      Refund Extra ID
+                                    </span>
+                                    <span className="text-white font-medium">
+                                      {refundExtraId}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
 
-                            {/* Warning Message */}
-                            <div className="bg-yellow-500/10 backdrop-blur-sm p-4 rounded-lg">
-                              <div className="flex items-start gap-3">
-                                <svg
-                                  className="w-6 h-6 text-yellow-500 flex-shrink-0"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                  />
-                                </svg>
-                                <div>
-                                  <p className="text-yellow-500 font-medium">
-                                    Important:
-                                  </p>
-                                  <ul className="text-yellow-500/80 text-sm mt-1 list-disc list-inside space-y-1">
-                                    <li>
-                                      Send only{" "}
-                                      {selectedSendCrypto?.symbol.toUpperCase()}{" "}
-                                      to this address
-                                    </li>
-                                    <li>
-                                      Minimum amount: {sendAmount}{" "}
-                                      {selectedSendCrypto?.symbol.toUpperCase()}
-                                    </li>
-                                    <li>Send only one transaction</li>
-                                    <li>
-                                      {exchangeData?.isLocked ? (
-                                        <>
-                                          Your{" "}
-                                          {exchangeData?.originalCurrencyTo?.toUpperCase()}{" "}
-                                          will be sent to:{" "}
-                                          {exchangeData?.originalAddressTo}
-                                        </>
-                                      ) : (
-                                        <>
-                                          Your{" "}
-                                          {selectedGetCrypto?.symbol.toUpperCase()}{" "}
-                                          will be sent to:{" "}
-                                          {recipientAddress.slice(0, 10)}...
-                                          {recipientAddress.slice(-10)}
-                                        </>
-                                      )}
-                                    </li>
-                                  </ul>
+                              {/* Warning Message */}
+                              <div className="bg-yellow-500/10 backdrop-blur-sm p-4 rounded-lg">
+                                <div className="flex items-start gap-3">
+                                  <svg
+                                    className="w-6 h-6 text-yellow-500 flex-shrink-0"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
+                                  </svg>
+                                  <div>
+                                    <p className="text-yellow-500 font-medium">
+                                      Important:
+                                    </p>
+                                    <ul className="text-yellow-500/80 text-sm mt-1 list-disc list-inside space-y-1">
+                                      <li>
+                                        Send only{" "}
+                                        {selectedSendCrypto?.symbol.toUpperCase()}{" "}
+                                        to this address
+                                      </li>
+                                      <li>
+                                        Minimum amount: {sendAmount}{" "}
+                                        {selectedSendCrypto?.symbol.toUpperCase()}
+                                      </li>
+                                      <li>Send only one transaction</li>
+                                      <li>
+                                        {exchangeData?.isLocked ? (
+                                          <>
+                                            Your{" "}
+                                            {exchangeData?.originalCurrencyTo?.toUpperCase()}{" "}
+                                            will be sent to:{" "}
+                                            {exchangeData?.originalAddressTo}
+                                          </>
+                                        ) : (
+                                          <>
+                                            Your{" "}
+                                            {selectedGetCrypto?.symbol.toUpperCase()}{" "}
+                                            will be sent to:{" "}
+                                            {recipientAddress.slice(0, 10)}...
+                                            {recipientAddress.slice(-10)}
+                                          </>
+                                        )}
+                                      </li>
+                                    </ul>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
+                      )}
+                      <div className="flex gap-4 mt-4">
+                        {step > 1 && step !== 5 && (
+                          <button
+                            onClick={handleBack}
+                            className="flex-1 h-[70px] rounded-xl font-semibold transition-all duration-300 bg-white/5 hover:bg-white/10 text-white backdrop-blur-md"
+                            style={{
+                              fontFamily: "Poppins, Inter, sans-serif",
+                              fontSize: "min(4vw, 18px)",
+                            }}
+                          >
+                            Back
+                          </button>
+                        )}
+
+                        {step < 4 && (
+                          <button
+                            onClick={handleNext}
+                            className={`flex-1 h-[70px] rounded-xl text-white font-semibold transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc] ${
+                              isNextButtonDisabled()
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                            style={{
+                              fontFamily: "Poppins, Inter, sans-serif",
+                              fontSize: "min(4vw, 18px)",
+                            }}
+                          >
+                            Next
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
-                  <div className="flex gap-4 mt-4">
-                    {step > 1 && step !== 5 && (
-                      <button
-                        onClick={handleBack}
-                        className="flex-1 h-[70px] rounded-xl font-semibold transition-all duration-300 bg-white/5 hover:bg-white/10 text-white backdrop-blur-md"
-                        style={{
-                          fontFamily: "Poppins, Inter, sans-serif",
-                          fontSize: "min(4vw, 18px)",
-                        }}
-                      >
-                        Back
-                      </button>
-                    )}
-
-                    {step < 4 && (
-                      <button
-                        onClick={handleNext}
-                        className={`flex-1 h-[70px] rounded-xl text-white font-semibold transition-all duration-300 hover:bg-[#0956c8] hover:shadow-lg bg-[#0f75fc] ${
-                          isNextButtonDisabled()
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
-                        }`}
-                        style={{
-                          fontFamily: "Poppins, Inter, sans-serif",
-                          fontSize: "min(4vw, 18px)",
-                        }}
-                      >
-                        Next
-                      </button>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
