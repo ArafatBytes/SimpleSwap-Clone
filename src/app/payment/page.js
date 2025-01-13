@@ -1081,37 +1081,46 @@ function PaymentPageContent() {
                 </div>
 
                 <div className="mt-8 mb-12 relative">
-                  {/* Progress line */}
-                  <div className="absolute top-5 left-0 w-full h-[2px] bg-white/5">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-in-out"
-                      style={{
-                        width:
-                          exchangeStatus?.status === "finished"
-                            ? "100%"
-                            : exchangeStatus?.status === "confirming"
-                            ? "75%"
-                            : exchangeStatus?.status === "exchanging"
-                            ? "50%"
-                            : exchangeStatus?.status === "waiting"
-                            ? "25%"
-                            : exchangeStatus?.status === "failed" ||
-                              exchangeStatus?.status === "refunded" ||
-                              exchangeStatus?.status === "expired"
-                            ? "100%"
-                            : "0%",
-                        backgroundColor:
-                          exchangeStatus?.status === "failed" ||
-                          exchangeStatus?.status === "refunded" ||
-                          exchangeStatus?.status === "expired"
-                            ? "#EF4444"
-                            : undefined,
-                      }}
-                    />
+                  {/* Transaction Status Text */}
+                  <div className="text-center mb-6">
+                    <p className="text-white/70 text-sm">
+                      {!["finished", "failed", "refunded", "expired"].includes(
+                        exchangeStatus?.status
+                      ) && "Your transaction will automatically be detected"}
+                    </p>
                   </div>
 
                   {/* Status Steps */}
                   <div className="flex justify-between relative">
+                    {/* Progress line */}
+                    <div className="absolute top-6 left-0 w-full h-[2px] bg-white/5">
+                      <div
+                        className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-in-out"
+                        style={{
+                          width:
+                            exchangeStatus?.status === "finished"
+                              ? "100%"
+                              : exchangeStatus?.status === "confirming"
+                              ? "75%"
+                              : exchangeStatus?.status === "exchanging"
+                              ? "50%"
+                              : exchangeStatus?.status === "waiting"
+                              ? "25%"
+                              : exchangeStatus?.status === "failed" ||
+                                exchangeStatus?.status === "refunded" ||
+                                exchangeStatus?.status === "expired"
+                              ? "100%"
+                              : "0%",
+                          backgroundColor:
+                            exchangeStatus?.status === "failed" ||
+                            exchangeStatus?.status === "refunded" ||
+                            exchangeStatus?.status === "expired"
+                              ? "#EF4444"
+                              : undefined,
+                        }}
+                      />
+                    </div>
+
                     {[
                       {
                         title: "Waiting",
@@ -1137,14 +1146,13 @@ function PaymentPageContent() {
                       const isActive =
                         exchangeStatus?.status === statusStep.status;
                       const isPassed =
-                        exchangeStatus?.status === "finished" ||
-                        (exchangeStatus?.status === "confirming" &&
+                        (exchangeStatus?.status === "finished" &&
                           statusStep.status !== "finished") ||
-                        (exchangeStatus?.status === "exchanging" &&
+                        (exchangeStatus?.status === "confirming" &&
                           ["waiting", "exchanging"].includes(
                             statusStep.status
                           )) ||
-                        (exchangeStatus?.status === "waiting" &&
+                        (exchangeStatus?.status === "exchanging" &&
                           statusStep.status === "waiting");
                       const isError = [
                         "failed",
@@ -1166,7 +1174,11 @@ function PaymentPageContent() {
                                 : "bg-white/5 border border-white/10"
                             }`}
                           >
-                            {isPassed || isActive ? (
+                            {isActive ? (
+                              <div className="w-6 h-6 relative">
+                                <div className="absolute inset-0 rounded-full border-2 border-white/30 border-t-white animate-spin"></div>
+                              </div>
+                            ) : isPassed ? (
                               <svg
                                 className="w-6 h-6 text-white"
                                 fill="none"
@@ -1181,9 +1193,7 @@ function PaymentPageContent() {
                                 />
                               </svg>
                             ) : (
-                              <span className="text-lg font-semibold text-white/50">
-                                •
-                              </span>
+                              <span className="text-white/50 text-xl">•</span>
                             )}
                           </div>
                           <div className="mt-4 text-center">
@@ -1670,19 +1680,6 @@ function PaymentPageContent() {
                           to complete your exchange
                         </p>
                       </div>
-
-                      {/* Loading Spinner */}
-                      {exchangeStatus?.status &&
-                        !["finished", "failed", "refunded", "expired"].includes(
-                          exchangeStatus.status
-                        ) && (
-                          <div className="flex flex-col items-center justify-center space-y-3 mb-4">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                            <p className="text-white/70 text-sm">
-                              Your transaction will automatically be detected
-                            </p>
-                          </div>
-                        )}
 
                       {exchangeStatus?.status === "finished" ? (
                         <div className="bg-white rounded-lg p-8 text-center">
