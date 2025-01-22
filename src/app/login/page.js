@@ -83,8 +83,31 @@ export default function Login() {
                 height={32}
                 className="text-white"
               />
-              <span className="text-[14px] sm:text-[16px] md:text-[18px] font-semibold text-white">
-                SimpleSwap
+              <span className="text-[14px] sm:text-[16px] md:text-[18px] font-semibold">
+                <span
+                  style={{
+                    color: "#67e8f9",
+                    textShadow: "0 0 2px rgba(103, 232, 249, 0.3)",
+                  }}
+                >
+                  Simple
+                </span>
+                <span
+                  style={{
+                    color: "#c084fc",
+                    textShadow: "0 0 2px rgba(192, 132, 252, 0.3)",
+                  }}
+                >
+                  2
+                </span>
+                <span
+                  style={{
+                    color: "#67e8f9",
+                    textShadow: "0 0 2px rgba(103, 232, 249, 0.3)",
+                  }}
+                >
+                  Swap
+                </span>
               </span>
             </Link>
             <Link
