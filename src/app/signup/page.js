@@ -202,7 +202,7 @@ function SignUpForm() {
               className="text-gray-300 text-sm"
               style={{ fontFamily: "Poppins, Inter, sans-serif" }}
             >
-              Join SimpleSwap to start exchanging crypto
+              Join Simple2Swap to start exchanging crypto
             </p>
           </div>
 

@@ -148,7 +148,7 @@ export default function Login() {
               className="text-gray-300 text-sm"
               style={{ fontFamily: "Poppins, Inter, sans-serif" }}
             >
-              Sign in to continue with SimpleSwap
+              Sign in to continue with Simple2Swap
             </p>
           </div>
 

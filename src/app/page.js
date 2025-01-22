@@ -2074,7 +2074,7 @@ export default function Home() {
               className="text-center text-[14px] font-semibold"
               style={{ color: "#859ab5" }}
             >
-              &copy; 2018-2024 SimpleSwap
+              &copy; 2025 Simple2Swap
             </p>
           </div>
         </div>

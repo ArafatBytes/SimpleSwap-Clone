@@ -19,10 +19,10 @@ const geistMono = localFont({
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "SimpleSwap Clone",
-  description: "A clone of SimpleSwap cryptocurrency exchange",
+  title: "Simple2Swap",
+  description: "Simple2Swap cryptocurrency exchange",
   icons: {
-    icon: null,
+    icon: "/favicon1b66.ico",
   },
 };
 
