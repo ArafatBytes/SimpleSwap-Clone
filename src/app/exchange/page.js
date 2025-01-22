@@ -263,30 +263,18 @@ export default function Home() {
   }, [isButtonClick]);
 
   const handleLogout = async () => {
+    // Save current exchanges before logout
+    if (userExchanges.length > 0) {
+      saveExchangesToCookies(userExchanges, userEmail);
+    }
+
     localStorage.removeItem("token");
     localStorage.removeItem("userEmail");
     setIsAuthenticated(false);
     setUserEmail("");
-    toast.info("Logging out...", {
-      position: "top-right",
-      autoClose: 2000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      style: {
-        background: "rgba(23, 63, 136, 0.6)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-        boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-        color: "white",
-      },
-    });
+    toast.info("Logging out...");
 
     try {
-      // Clear the HTTP-only cookie by calling the logout endpoint
       await fetch("/api/auth/logout", { method: "POST" });
       window.location.reload();
     } catch (error) {
@@ -507,6 +495,16 @@ export default function Home() {
       const data = await response.json();
 
       if (response.ok) {
+        // Update exchanges in cookies with the new exchange
+        const cookieData = getExchangesFromCookies();
+        if (cookieData) {
+          const updatedExchanges = [data.exchange, ...cookieData.exchanges];
+          saveExchangesToCookies(
+            updatedExchanges,
+            userEmail || cookieData.email
+          );
+        }
+
         // Clear session storage before redirecting
         sessionStorage.removeItem("exchangeState");
 
@@ -895,7 +893,16 @@ export default function Home() {
 
   // Add this function to fetch user exchanges
   const fetchUserExchanges = async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      // If not authenticated, load from storage
+      const storedData = getExchangesFromCookies();
+      if (storedData) {
+        console.log("Loading exchanges from storage for logged out user");
+        setUserExchanges(storedData.exchanges);
+        return;
+      }
+      return;
+    }
 
     setIsLoadingExchanges(true);
     try {
@@ -923,7 +930,6 @@ export default function Home() {
                   status: statusData.status,
                 };
               }
-              // Add a small delay between requests
               if (i < exchanges.length - 1) {
                 await new Promise((resolve) => setTimeout(resolve, 500));
               }
@@ -936,6 +942,8 @@ export default function Home() {
           }
         }
         setUserExchanges(updatedExchanges);
+        // Save to storage
+        saveExchangesToCookies(updatedExchanges, userEmail);
       }
     } catch (error) {
       console.error("Failed to fetch user exchanges:", error);
@@ -949,7 +957,58 @@ export default function Home() {
     if (isDropdownOpen) {
       fetchUserExchanges();
     }
-  }, [isDropdownOpen, isAuthenticated]);
+  }, [isDropdownOpen]);
+
+  // Add function to handle cookie management
+  const saveExchangesToCookies = (exchanges, email) => {
+    try {
+      const exchangesData = {
+        email,
+        exchanges,
+        timestamp: new Date().getTime(),
+      };
+
+      // Store in localStorage instead of cookies for better data handling
+      localStorage.setItem("userExchanges", JSON.stringify(exchangesData));
+      console.log("Exchanges saved to storage:", exchangesData);
+    } catch (error) {
+      console.error("Error saving exchanges:", error);
+    }
+  };
+
+  const getExchangesFromCookies = () => {
+    try {
+      const storedData = localStorage.getItem("userExchanges");
+      if (storedData) {
+        const exchangesData = JSON.parse(storedData);
+        console.log("Exchanges loaded from storage:", exchangesData);
+        return exchangesData;
+      }
+    } catch (error) {
+      console.error("Error reading exchanges:", error);
+    }
+    return null;
+  };
+
+  const clearExchangesCookies = () => {
+    try {
+      localStorage.removeItem("userExchanges");
+      console.log("Exchanges storage cleared");
+    } catch (error) {
+      console.error("Error clearing exchanges:", error);
+    }
+  };
+
+  // Add effect to check for new user login
+  useEffect(() => {
+    if (isAuthenticated && userEmail) {
+      const storedData = getExchangesFromCookies();
+      if (storedData && storedData.email !== userEmail) {
+        // Clear storage if a different user logs in
+        clearExchangesCookies();
+      }
+    }
+  }, [isAuthenticated, userEmail]);
 
   return (
     <div
@@ -976,8 +1035,31 @@ export default function Home() {
                     height={32}
                     className="text-white"
                   />
-                  <span className="text-[14px] sm:text-[16px] md:text-[18px] font-semibold text-white">
-                    SimpleSwap
+                  <span className="text-[14px] sm:text-[16px] md:text-[18px] font-semibold">
+                    <span
+                      style={{
+                        color: "#67e8f9",
+                        textShadow: "0 0 2px rgba(103, 232, 249, 0.3)",
+                      }}
+                    >
+                      Simple
+                    </span>
+                    <span
+                      style={{
+                        color: "#c084fc",
+                        textShadow: "0 0 2px rgba(192, 132, 252, 0.3)",
+                      }}
+                    >
+                      2
+                    </span>
+                    <span
+                      style={{
+                        color: "#67e8f9",
+                        textShadow: "0 0 2px rgba(103, 232, 249, 0.3)",
+                      }}
+                    >
+                      Swap
+                    </span>
                   </span>
                 </div>
 
@@ -1051,99 +1133,76 @@ export default function Home() {
                       </button>
                       {isDropdownOpen && (
                         <div className="absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-[#173f88] py-4 px-4">
-                          {isAuthenticated ? (
+                          {isLoadingExchanges ? (
+                            <div className="flex justify-center py-4">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                            </div>
+                          ) : userExchanges && userExchanges.length > 0 ? (
                             <>
-                              {isLoadingExchanges ? (
-                                <div className="flex justify-center py-4">
-                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                                </div>
-                              ) : userExchanges.length > 0 ? (
-                                <>
-                                  <div className="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                                    {userExchanges.map((exchange) => (
-                                      <div
-                                        key={exchange.id}
-                                        onClick={() => {
-                                          // Simple encoding: add 5 at start and 3 at end
-                                          const encodedId = `5${exchange.id}3`;
-                                          window.location.href = `/payment?exchange_id=${encodedId}`;
-                                        }}
-                                        className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-colors cursor-pointer"
-                                      >
-                                        <div className="flex items-center justify-between mb-2">
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-sm font-medium text-white">
-                                              {exchange.currency_from.toUpperCase()}{" "}
-                                              →{" "}
-                                              {exchange.currency_to.toUpperCase()}
-                                            </span>
-                                          </div>
-                                          <span
-                                            className={`text-xs px-2 py-1 rounded ${
-                                              exchange.status === "finished"
-                                                ? "bg-green-500/20 text-green-400"
-                                                : exchange.status === "waiting"
-                                                ? "bg-yellow-500/20 text-yellow-400"
-                                                : exchange.status ===
-                                                  "confirming"
-                                                ? "bg-blue-500/20 text-blue-400"
-                                                : exchange.status ===
-                                                  "exchanging"
-                                                ? "bg-purple-500/20 text-purple-400"
-                                                : exchange.status ===
-                                                    "failed" ||
-                                                  exchange.status ===
-                                                    "expired" ||
-                                                  exchange.status === "refunded"
-                                                ? "bg-red-500/20 text-red-400"
-                                                : "bg-gray-500/20 text-gray-400"
-                                            }`}
-                                          >
-                                            {exchange.status
-                                              .charAt(0)
-                                              .toUpperCase() +
-                                              exchange.status.slice(1)}
-                                          </span>
-                                        </div>
-                                        <div className="flex justify-between text-xs text-gray-300">
-                                          <span>
-                                            {exchange.amount_from}{" "}
-                                            {exchange.currency_from.toUpperCase()}
-                                          </span>
-                                          <span>
-                                            {exchange.amount_to}{" "}
-                                            {exchange.currency_to.toUpperCase()}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <div className="mt-4 pt-3 border-t border-white/10">
-                                    <button
-                                      onClick={() => {
-                                        window.location.href = "/exchange";
-                                      }}
-                                      className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
-                                    >
-                                      Create a new exchange
-                                    </button>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <p className="text-white text-sm mb-3">
-                                    You don&apos;t have any exchanges yet
-                                  </p>
-                                  <button
+                              <div className="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                                {userExchanges.map((exchange) => (
+                                  <div
+                                    key={exchange.id}
                                     onClick={() => {
-                                      window.location.href = "/exchange";
+                                      // Simple encoding: add 5 at start and 3 at end
+                                      const encodedId = `5${exchange.id}3`;
+                                      window.location.href = `/payment?exchange_id=${encodedId}`;
                                     }}
-                                    className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
+                                    className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-colors cursor-pointer"
                                   >
-                                    Create a new exchange
-                                  </button>
-                                </>
-                              )}
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium text-white">
+                                          {exchange.currency_from.toUpperCase()}{" "}
+                                          → {exchange.currency_to.toUpperCase()}
+                                        </span>
+                                      </div>
+                                      <span
+                                        className={`text-xs px-2 py-1 rounded ${
+                                          exchange.status === "finished"
+                                            ? "bg-green-500/20 text-green-400"
+                                            : exchange.status === "waiting"
+                                            ? "bg-yellow-500/20 text-yellow-400"
+                                            : exchange.status === "confirming"
+                                            ? "bg-blue-500/20 text-blue-400"
+                                            : exchange.status === "exchanging"
+                                            ? "bg-purple-500/20 text-purple-400"
+                                            : exchange.status === "failed" ||
+                                              exchange.status === "expired" ||
+                                              exchange.status === "refunded"
+                                            ? "bg-red-500/20 text-red-400"
+                                            : "bg-gray-500/20 text-gray-400"
+                                        }`}
+                                      >
+                                        {exchange.status
+                                          .charAt(0)
+                                          .toUpperCase() +
+                                          exchange.status.slice(1)}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between text-xs text-gray-300">
+                                      <span>
+                                        {exchange.amount_from}{" "}
+                                        {exchange.currency_from.toUpperCase()}
+                                      </span>
+                                      <span>
+                                        {exchange.amount_to}{" "}
+                                        {exchange.currency_to.toUpperCase()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-4 pt-3 border-t border-white/10">
+                                <button
+                                  onClick={() => {
+                                    window.location.href = "/exchange";
+                                  }}
+                                  className="block w-full text-white bg-[#0f75fc] hover:bg-[#123276] px-4 py-2 rounded-lg transition-colors text-sm text-center"
+                                >
+                                  Create a new exchange
+                                </button>
+                              </div>
                             </>
                           ) : (
                             <>
@@ -2696,7 +2755,7 @@ export default function Home() {
             className="text-center text-[14px] font-semibold z-[3]"
             style={{ color: "#859ab5" }}
           >
-            &copy; 2018-2024 SimpleSwap
+            &copy; 2018-2024 Simple2Swap
           </p>
         </div>
       </div>
